@@ -2,6 +2,7 @@
 // Busy Light Project - Version 8.0.4
 // ESP32 with M365 Calendar Integration via HiveMQ Cloud MQTT
 // Conversion to platform.io
+// Lessard Industries, 2026
 // ============================================================================
 
 #include <Arduino.h>
