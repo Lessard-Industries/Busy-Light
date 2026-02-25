@@ -21,7 +21,7 @@
 // ============================================================================
 
 // Device ID - Change this for each device (1-5)
-#define DEVICE_ID 3
+#define DEVICE_ID 2
 
 // MQTT Broker (HiveMQ Cloud)
 const char* MQTT_SERVER = SECRET_MQTT_SERVER;
@@ -86,7 +86,7 @@ const int GAP_DURATION_MS = 100;
 // DERIVED CONSTANTS (auto-generated from config)
 // ============================================================================
 
-const char* FIRMWARE_VERSION = "8.0.4";
+const char* FIRMWARE_VERSION = "8.0.6";
 const String DEVICE_HOSTNAME = "BusyLight-Office-" + String(DEVICE_ID);
 
 // MQTT Topics
@@ -1084,11 +1084,24 @@ void checkScheduledReboot() {
   struct tm timeinfo;
   localtime_r(&now, &timeinfo);
 
-  // Reboot at 6:55 AM daily
-if (timeinfo.tm_hour == 6 && timeinfo.tm_min == 55) {
-    logMessage("=== SCHEDULED REBOOT ===");
-    delay(100);
-    ESP.restart();
+  // Reboot at 6:55 AM daily (once only per day)
+  if (timeinfo.tm_hour == 6 && timeinfo.tm_min == 55) {
+    // Check if we already rebooted today using NVS
+    int today = (timeinfo.tm_year + 1900) * 10000 + (timeinfo.tm_mon + 1) * 100 + timeinfo.tm_mday;
+    prefs.begin("busylight", true);
+    int lastRebootDay = prefs.getInt("rebootDay", 0);
+    prefs.end();
+
+    if (lastRebootDay != today) {
+      // Save today's date before rebooting
+      prefs.begin("busylight", false);
+      prefs.putInt("rebootDay", today);
+      prefs.end();
+
+      logMessage("=== SCHEDULED REBOOT ===");
+      delay(100);
+      ESP.restart();
+    }
   }
 }
 
@@ -1190,23 +1203,57 @@ void setupWiFi() {
 
     WiFi.setHostname(DEVICE_HOSTNAME.c_str());
     WiFi.mode(WIFI_STA);
-    
-    logMessage("Starting WiFiManager...");
-    
+
+    // Try predefined WiFi networks before falling back to WiFiManager
+    const char* wifiNetworks[][2] = {
+        { SECRET_WIFI_SSID,  SECRET_WIFI_PASSWORD  },
+        { SECRET_WIFI_SSID2, SECRET_WIFI_PASSWORD2 },
+    };
+    const int numNetworks = sizeof(wifiNetworks) / sizeof(wifiNetworks[0]);
+
+    for (int n = 0; n < numNetworks; n++) {
+        logMessage("Trying WiFi " + String(n + 1) + ": " + String(wifiNetworks[n][0]));
+        WiFi.begin(wifiNetworks[n][0], wifiNetworks[n][1]);
+
+        // Slow green blink while trying to connect
+        int attempts = 0;
+        while (WiFi.status() != WL_CONNECTED && attempts < 20) {  // ~10 seconds
+            ledcWrite(1, 255);  // Green on
+            delay(250);
+            ledcWrite(1, 0);    // Green off
+            delay(250);
+            attempts++;
+        }
+
+        if (WiFi.status() == WL_CONNECTED) {
+            logMessage("Connected to WiFi: " + String(wifiNetworks[n][0]));
+            logMessage("IP address: " + WiFi.localIP().toString());
+            reconnectAttempts = 0;
+            apTriggered = false;
+            return;
+        }
+
+        WiFi.disconnect();
+        delay(100);
+    }
+
+    // All predefined networks failed, fall back to WiFiManager
+    logMessage("All predefined WiFi networks failed, starting WiFiManager...");
+
     WiFiManager wm;
-    
+
     // Set timeout for config portal (2 minutes)
     wm.setConfigPortalTimeout(120);
-    
+
     // Callback when entering AP mode
     wm.setAPCallback([](WiFiManager* myWiFiManager) {
         logMessage("=== WIFI CONFIG MODE ===");
         logMessage("Connect to: BusyLightAP");
         logMessage("Configure WiFi at 192.168.4.1");
-        
+
         apTriggered = true;
         saveBlackoutData();
-        
+
         // Distinctive: 3 bursts of 3 fast yellow blinks
         for (int burst = 0; burst < 3; burst++) {
             for (int i = 0; i < 3; i++) {
@@ -1218,17 +1265,17 @@ void setupWiFi() {
             delay(500);  // Pause between bursts
         }
     });
-    
+
     // Track reconnect attempts
     reconnectAttempts++;
     saveBlackoutData();
-    
+
     // Slow yellow blink while trying to connect
     ledcWrite(3, 255);
     delay(250);
     ledcWrite(3, 0);
     delay(750);
-    
+
     String apName;
     if (friendlyName.length() > 0) {
       apName = friendlyName + " Setup";
@@ -1248,11 +1295,11 @@ void setupWiFi() {
         delay(3000);
         ESP.restart();
     }
-    
+
     // Connected! Reset reconnect counter
     reconnectAttempts = 0;
     apTriggered = false;
-    
+
     logMessage("WiFi connected to: " + WiFi.SSID());
     logMessage("IP address: " + WiFi.localIP().toString());
 }
