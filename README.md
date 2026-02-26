@@ -126,6 +126,10 @@ Create a `secrets.h` file in the same directory as the `.ino` file:
 - Resistors (appropriate for your LEDs)
 - USB power supply
 
+### Optional (Monitoring Station)
+- Raspberry Pi Zero W
+- Waveshare 2.13" e-ink display (V4, HAT form factor)
+
 ---
 
 ## 📦 Software Dependencies
@@ -144,6 +148,13 @@ Create a `secrets.h` file in the same directory as the `.ino` file:
 ### Node-RED (Oracle Cloud)
 - Standard Node-RED palette
 - `node-red-dashboard` for UI
+
+### Raspberry Pi Zero (e-ink display)
+```bash
+sudo apt install python3-pil python3-numpy python3-requests python3-spidev
+pip3 install paho-mqtt
+git clone https://github.com/waveshare/e-Paper.git
+```
 
 ---
 
