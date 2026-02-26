@@ -7,18 +7,17 @@ Displays system status on 2.13" e-ink display
 import sys
 import os
 import time
-import json
 import ssl
 from datetime import datetime
-import paho.mqtt.client as mqtt
+import paho.mqtt.client as mqtt  # type: ignore
 
 # Add e-Paper library path
 epd_path = '/home/pi/e-Paper/RaspberryPi_JetsonNano/python/lib'
 if os.path.exists(epd_path):
     sys.path.append(epd_path)
 
-from waveshare_epd import epd2in13_V4
-from PIL import Image, ImageDraw, ImageFont
+from waveshare_epd import epd2in13_V4  # type: ignore
+from PIL import Image, ImageDraw, ImageFont  # type: ignore
 
 # ============================================================================
 # CONFIGURATION
