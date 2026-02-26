@@ -1,0 +1,801 @@
+[
+    {
+        "id": "9ff7a1626b9efc3c",
+        "type": "tab",
+        "label": "Dashboard",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "29d16af201358fab",
+        "type": "mqtt out",
+        "z": "9ff7a1626b9efc3c",
+        "name": "",
+        "topic": "busylight/all/command",
+        "qos": "1",
+        "retain": "false",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "8117f776ae8fa306",
+        "x": 1200,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "c227ee3f9f21d32f",
+        "type": "function",
+        "z": "9ff7a1626b9efc3c",
+        "name": "Master Control Aggregator",
+        "func": "// --- Handle periodic online status check ---\nif (msg.topic === \"check_online\") {\n    let devices = context.get('devices') || {};\n\n    const TIMEOUT_MS = 20000;\n    const now = Date.now();\n\n    function isOnline(device) {\n        if (!device || !device.lastSeen) return false;\n        return (now - device.lastSeen) < TIMEOUT_MS;\n    }\n\n    let output = {\n        dev1: devices.device1 || {},\n        dev2: devices.device2 || {},\n        dev3: devices.device3 || {},\n        dev4: devices.device4 || {},\n        dev5: devices.device5 || {},\n        dev1online: isOnline(devices.device1),\n        dev2online: isOnline(devices.device2),\n        dev3online: isOnline(devices.device3),\n        dev4online: isOnline(devices.device4),\n        dev5online: isOnline(devices.device5),\n        dev1name: (devices.device1 && devices.device1.friendlyName) || \"Device 1\",\n        dev2name: (devices.device2 && devices.device2.friendlyName) || \"Device 2\",\n        dev3name: (devices.device3 && devices.device3.friendlyName) || \"Device 3\",\n        dev4name: (devices.device4 && devices.device4.friendlyName) || \"Device 4\",\n        dev5name: (devices.device5 && devices.device5.friendlyName) || \"Device 5\",\n    };\n\n    return { payload: output };\n}\n\n// --- Initialization ---\nif (!context.get('initialized')) {\n    context.set('devices', {\n        device1: {},\n        device2: {},\n        device3: {},\n        device4: {},\n        device5: {}\n    });\n    context.set('initialized', true);\n}\n\nlet devices = context.get('devices');\n\n// --- Handle device messages (from Parse Device Data) ---\nlet dev = devices[msg.deviceId] || {};\n\n// Update last seen timestamp for ANY message from this device\ndev.lastSeen = Date.now();\n\nswitch (msg.dataType) {\n    case \"lwt\":\n        dev.lwt = msg.value;\n        break;\n\n    case \"status\":\n        dev.status = msg.value;\n        dev.statusColor = msg.statusColor;\n        break;\n\n    case \"mode\":\n        dev.mode = msg.value;\n        dev.modeDisplay = msg.modeDisplay;\n        break;\n\n    case \"active_led\":\n        dev.activeLed = msg.value;\n        dev.ledColorCode = msg.ledColorCode;\n        break;\n\n    case \"ip\":\n        dev.ip = msg.value;\n        break;\n\n    case \"version\":\n        dev.version = msg.value;\n        break;\n\n    case \"friendly_name\":\n        dev.friendlyName = msg.value;\n        break;    \n\n    case \"log\":\n        if (!dev.logs) dev.logs = [];\n        dev.logs.unshift(msg.logEntry);\n        dev.logs = dev.logs.slice(0, 30);\n        break;\n\n    case \"meeting\":\n        if (!dev.meeting) dev.meeting = {};\n        dev.meeting[msg.meetingField] = msg.value;\n        break;\n}\n\ndevices[msg.deviceId] = dev;\ncontext.set('devices', devices);\n\n// Determine online status based on recent activity\nconst TIMEOUT_MS = 20000;\nconst now = Date.now();\n\nfunction isOnline(device) {\n    if (!device || !device.lastSeen) return false;\n    return (now - device.lastSeen) < TIMEOUT_MS;\n}\n\n// Build combined output\nlet output = {\n    dev1: devices.device1 || {},\n    dev2: devices.device2 || {},\n    dev3: devices.device3 || {},\n    dev4: devices.device4 || {},\n    dev5: devices.device5 || {},\n    dev1online: isOnline(devices.device1),\n    dev2online: isOnline(devices.device2),\n    dev3online: isOnline(devices.device3),\n    dev4online: isOnline(devices.device4),\n    dev5online: isOnline(devices.device5),\n    dev1name: (devices.device1 && devices.device1.friendlyName) || \"Device 1\",\n    dev2name: (devices.device2 && devices.device2.friendlyName) || \"Device 2\",\n    dev3name: (devices.device3 && devices.device3.friendlyName) || \"Device 3\",\n    dev4name: (devices.device4 && devices.device4.friendlyName) || \"Device 4\",\n    dev5name: (devices.device5 && devices.device5.friendlyName) || \"Device 5\",\n};\n\nreturn { payload: output };",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 460,
+        "y": 400,
+        "wires": [
+            [
+                "1c08015b4e90089d"
+            ]
+        ]
+    },
+    {
+        "id": "533a6c05a926d531",
+        "type": "delay",
+        "z": "9ff7a1626b9efc3c",
+        "name": "",
+        "pauseType": "rate",
+        "timeout": "0.5",
+        "timeoutUnits": "seconds",
+        "rate": "10",
+        "nbRateUnits": "1",
+        "rateUnits": "second",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": true,
+        "allowrate": false,
+        "outputs": 1,
+        "x": 840,
+        "y": 400,
+        "wires": [
+            [
+                "2514f53472cd69a0"
+            ]
+        ]
+    },
+    {
+        "id": "acc72b51f686726b",
+        "type": "function",
+        "z": "9ff7a1626b9efc3c",
+        "name": "Parse Device Data",
+        "func": "// Extract device ID and data type from topic\n// Topic format: busylight/device3/status or busylight/1/meeting/title\nconst parts = msg.topic.split('/');\nlet deviceId = parts[1]; // \"device3\" or \"1\"\nconst dataType = parts[2]; // \"status\", \"mode\", \"ip\", \"log\", \"lwt\", \"active_led\", \"meeting\"\n\n// Don't process \"all\" commands\nif (deviceId === \"all\") {\n    return null;\n}\n\nmsg.deviceId = deviceId;\nmsg.dataType = dataType;\nmsg.value = msg.payload;\n\nif (msg.dataType === \"lwt\" && msg.retain === true) {\n    return null;\n}\n\n// Handle meeting subtopics (busylight/1/meeting/title)\nif (dataType === 'meeting' && parts[3]) {\n    msg.meetingField = parts[3];  // title, date, start, current, end\n}\n\n// Add timestamp for activity tracking\nmsg.timestamp = new Date().toLocaleTimeString('en-US', { timeZone: 'America/New_York' });\n\n// Enhanced logging for certain types\nif (dataType === \"log\") {\n    msg.logEntry = `${msg.timestamp} - ${msg.payload}`;\n}\n\n// Status enrichment\nif (dataType === \"status\") {\n    msg.statusColor = getStatusColor(msg.payload);\n}\n\n// Mode enrichment\nif (dataType === \"mode\") {\n    msg.modeDisplay = formatMode(msg.payload);\n}\n\n// Connection state\nif (dataType === \"lwt\") {\n    msg.isOnline = (msg.payload === \"online\");\n    msg.connectionStatus = msg.payload;\n}\n\n// Active LED color\nif (dataType === \"active_led\") {\n    msg.ledColor = msg.payload;\n    msg.ledColorCode = getLedColorCode(msg.payload);\n}\n\nreturn msg;\n\n// Helper functions\nfunction getStatusColor(status) {\n    const colors = {\n        \"busy\": \"red\",\n        \"free\": \"green\",\n        \"remote\": \"blue\",\n        \"off_hours\": \"gray\",\n        \"unknown\": \"orange\"\n    };\n    return colors[status] || \"gray\";\n}\n\nfunction formatMode(mode) {\n    return mode.replace(/_/g, \" \");\n}\n\nfunction getLedColorCode(color) {\n    const codes = {\n        \"RED\": \"#FF0000\",\n        \"GREEN\": \"#00FF00\",\n        \"BLUE\": \"#0000FF\",\n        \"YELLOW\": \"#FFFF00\",\n        \"WHITE\": \"#FFFFFF\",\n        \"OFF\": \"#000000\",\n        \"EFFECT\": \"#FF00FF\",\n        \"NONE\": \"#808080\"\n    };\n    return codes[color] || \"#808080\";\n}",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 170,
+        "y": 320,
+        "wires": [
+            [
+                "c227ee3f9f21d32f",
+                "26a424905bfda4c0",
+                "a5853f93d6bdcf13",
+                "d68b75c1b29ce739",
+                "64110738b4be786f",
+                "77eec01bebc5e03e"
+            ]
+        ]
+    },
+    {
+        "id": "77eec01bebc5e03e",
+        "type": "function",
+        "z": "9ff7a1626b9efc3c",
+        "name": "Device 5 - Aggregate Data",
+        "func": "// ============================================\n// DEVICE CONFIGURATION - CHANGE THIS  ONLY\n// ============================================\nconst DEVICE_ID = \"device5\";  // ← Change to device2, device3, device4, device5\n// ============================================\n\n// --- Handle periodic online status check ---\nif (msg.topic === \"check_online\") {\n    const contextKey = DEVICE_ID + 'data';\n    let data = context.get(contextKey) || { online: false };\n    \n    const TIMEOUT_MS = 20000;\n    const now = Date.now();\n    data.online = (data.lastSeen && (now - data.lastSeen) < TIMEOUT_MS);\n    \n    context.set(contextKey, data);\n    return data;\n}\n\n// Filter for this device only\nif (msg.deviceId !== DEVICE_ID) {\n    return null;\n}\n\n// Initialize context storage\nconst contextKey = DEVICE_ID + 'data';\nlet data = context.get(contextKey) || {\n    leds: { red: false, green: false, blue: false, yellow: false, white: false },\n    status: 'UNKNOWN',\n    statusColor: 'gray',\n    online: false,\n    mode: 'UNKNOWN',\n    ip: '0.0.0.0',\n    logs: [],\n    nextMeeting: null\n};\n\n//On Node-RED restart, assume offline until we get fresh lwt\nif (flow.get('justStarted') === undefined) {\n    flow.set('justStarted', true);\n    data.online = false;\n}\n// Update last seen timestamp for ANY message\ndata.lastSeen = Date.now();\n\n// Update based on message type\nswitch (msg.dataType) {\n    case 'active_led':\n        data.leds = {\n            red: (msg.value === 'RED'),\n            green: (msg.value === 'GREEN'),\n            blue: (msg.value === 'BLUE'),\n            yellow: (msg.value === 'YELLOW'),\n            white: (msg.value === 'WHITE')\n        };\n        break;\n\n    case 'status':\n        data.status = msg.value.toUpperCase();\n        const colors = {\n            'BUSY': 'red',\n            'FREE': 'green',\n            'REMOTE': 'blue',\n            'OFF_HOURS': 'gray',\n            'UNKNOWN': 'orange'\n        };\n        data.statusColor = colors[data.status] || 'gray';\n        break;\n\n    case 'lwt':\n        data.online = (msg.value === 'online');\n        break;\n\n    case 'mode':\n        data.mode = msg.value.replace(/_/g, ' ');\n        break;\n\n    case 'ip':\n        data.ip = msg.value;\n        break;\n\n    case 'version':\n        data.version = msg.value;\n        break;\n    \n    case 'friendly_name':\n        data.friendlyName = msg.value;\n        break;\n\n    case 'log':\n        data.logs.unshift(msg.logEntry);\n        data.logs = data.logs.slice(0, 50);\n        break;\n\n    case 'meeting':\n        // Initialize meeting object if needed\n        if (!data.nextMeeting) {\n            data.nextMeeting = {};\n        }\n\n        // Store the meeting field\n        if (msg.meetingField) {\n            data.nextMeeting[msg.meetingField] = msg.value;\n\n            // Convert current field to boolean for isCurrent\n            if (msg.meetingField === 'current') {\n                data.nextMeeting.isCurrent = (msg.value === 'true');\n            }\n\n            // Clear meeting if title is empty\n            if (msg.meetingField === 'title' && (!msg.value || msg.value === '')) {\n                data.nextMeeting = null;\n            }\n        }\n        break;\n}\n\n// Calculate online status (20 second timeout)\nconst TIMEOUT_MS = 20000;\nconst now = Date.now();\ndata.online = (data.lastSeen && (now - data.lastSeen) < TIMEOUT_MS);\n\n// Save and send\ncontext.set(contextKey, data);\nreturn data;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 600,
+        "y": 320,
+        "wires": [
+            [
+                "a0ef7f3b9bf5f3ba"
+            ]
+        ]
+    },
+    {
+        "id": "26a424905bfda4c0",
+        "type": "function",
+        "z": "9ff7a1626b9efc3c",
+        "name": "Device 1 - Aggregate Data",
+        "func": "// ============================================\n// DEVICE CONFIGURATION - CHANGE THIS  ONLY\n// ============================================\nconst DEVICE_ID = \"device1\";  // ← Change to device2, device3, device4, device5\n// ============================================\n\n// --- Handle periodic online status check ---\nif (msg.topic === \"check_online\") {\n    const contextKey = DEVICE_ID + 'data';\n    let data = context.get(contextKey) || { online: false };\n    \n    const TIMEOUT_MS = 20000;\n    const now = Date.now();\n    data.online = (data.lastSeen && (now - data.lastSeen) < TIMEOUT_MS);\n    \n    context.set(contextKey, data);\n    return data;\n}\n\n// Filter for this device only\nif (msg.deviceId !== DEVICE_ID) {\n    return null;\n}\n\n// Initialize context storage\nconst contextKey = DEVICE_ID + 'data';\nlet data = context.get(contextKey) || {\n    leds: { red: false, green: false, blue: false, yellow: false, white: false },\n    status: 'UNKNOWN',\n    statusColor: 'gray',\n    online: false,\n    mode: 'UNKNOWN',\n    ip: '0.0.0.0',\n    logs: [],\n    nextMeeting: null\n};\n\n//On Node-RED restart, assume offline until we get fresh lwt\nif (flow.get('justStarted') === undefined) {\n    flow.set('justStarted', true);\n    data.online = false;\n}\n// Update last seen timestamp for ANY message\ndata.lastSeen = Date.now();\n\n// Update based on message type\nswitch (msg.dataType) {\n    case 'active_led':\n        data.leds = {\n            red: (msg.value === 'RED'),\n            green: (msg.value === 'GREEN'),\n            blue: (msg.value === 'BLUE'),\n            yellow: (msg.value === 'YELLOW'),\n            white: (msg.value === 'WHITE')\n        };\n        break;\n\n    case 'status':\n        data.status = msg.value.toUpperCase();\n        const colors = {\n            'BUSY': 'red',\n            'FREE': 'green',\n            'REMOTE': 'blue',\n            'OFF_HOURS': 'gray',\n            'UNKNOWN': 'orange'\n        };\n        data.statusColor = colors[data.status] || 'gray';\n        break;\n\n    case 'lwt':\n        data.online = (msg.value === 'online');\n        break;\n\n    case 'mode':\n        data.mode = msg.value.replace(/_/g, ' ');\n        break;\n\n    case 'ip':\n        data.ip = msg.value;\n        break;\n\n    case 'version':\n        data.version = msg.value;\n        break;\n    \n    case 'friendly_name':\n        data.friendlyName = msg.value;\n        break;\n\n    case 'log':\n        data.logs.unshift(msg.logEntry);\n        data.logs = data.logs.slice(0, 50);\n        break;\n\n    case 'meeting':\n        // Initialize meeting object if needed\n        if (!data.nextMeeting) {\n            data.nextMeeting = {};\n        }\n\n        // Store the meeting field\n        if (msg.meetingField) {\n            data.nextMeeting[msg.meetingField] = msg.value;\n\n            // Convert current field to boolean for isCurrent\n            if (msg.meetingField === 'current') {\n                data.nextMeeting.isCurrent = (msg.value === 'true');\n            }\n\n            // Clear meeting if title is empty\n            if (msg.meetingField === 'title' && (!msg.value || msg.value === '')) {\n                data.nextMeeting = null;\n            }\n        }\n        break;\n}\n\n// Calculate online status (20 second timeout)\nconst TIMEOUT_MS = 20000;\nconst now = Date.now();\ndata.online = (data.lastSeen && (now - data.lastSeen) < TIMEOUT_MS);\n\n// Save and send\ncontext.set(contextKey, data);\nreturn data;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 600,
+        "y": 80,
+        "wires": [
+            [
+                "4c50bdacc906e12c"
+            ]
+        ]
+    },
+    {
+        "id": "a5853f93d6bdcf13",
+        "type": "function",
+        "z": "9ff7a1626b9efc3c",
+        "name": "Device 2 - Aggregate Data",
+        "func": "// ============================================\n// DEVICE CONFIGURATION - CHANGE THIS  ONLY\n// ============================================\nconst DEVICE_ID = \"device2\";  // ← Change to device2, device3, device4, device5\n// ============================================\n\n// --- Handle periodic online status check ---\nif (msg.topic === \"check_online\") {\n    const contextKey = DEVICE_ID + 'data';\n    let data = context.get(contextKey) || { online: false };\n    \n    const TIMEOUT_MS = 20000;\n    const now = Date.now();\n    data.online = (data.lastSeen && (now - data.lastSeen) < TIMEOUT_MS);\n    \n    context.set(contextKey, data);\n    return data;\n}\n\n// Filter for this device only\nif (msg.deviceId !== DEVICE_ID) {\n    return null;\n}\n\n// Initialize context storage\nconst contextKey = DEVICE_ID + 'data';\nlet data = context.get(contextKey) || {\n    leds: { red: false, green: false, blue: false, yellow: false, white: false },\n    status: 'UNKNOWN',\n    statusColor: 'gray',\n    online: false,\n    mode: 'UNKNOWN',\n    ip: '0.0.0.0',\n    logs: [],\n    nextMeeting: null\n};\n\n//On Node-RED restart, assume offline until we get fresh lwt\nif (flow.get('justStarted') === undefined) {\n    flow.set('justStarted', true);\n    data.online = false;\n}\n// Update last seen timestamp for ANY message\ndata.lastSeen = Date.now();\n\n// Update based on message type\nswitch (msg.dataType) {\n    case 'active_led':\n        data.leds = {\n            red: (msg.value === 'RED'),\n            green: (msg.value === 'GREEN'),\n            blue: (msg.value === 'BLUE'),\n            yellow: (msg.value === 'YELLOW'),\n            white: (msg.value === 'WHITE')\n        };\n        break;\n\n    case 'status':\n        data.status = msg.value.toUpperCase();\n        const colors = {\n            'BUSY': 'red',\n            'FREE': 'green',\n            'REMOTE': 'blue',\n            'OFF_HOURS': 'gray',\n            'UNKNOWN': 'orange'\n        };\n        data.statusColor = colors[data.status] || 'gray';\n        break;\n\n    case 'lwt':\n        data.online = (msg.value === 'online');\n        break;\n\n    case 'mode':\n        data.mode = msg.value.replace(/_/g, ' ');\n        break;\n\n    case 'ip':\n        data.ip = msg.value;\n        break;\n\n    case 'version':\n        data.version = msg.value;\n        break;\n    \n    case 'friendly_name':\n        data.friendlyName = msg.value;\n        break;\n\n    case 'log':\n        data.logs.unshift(msg.logEntry);\n        data.logs = data.logs.slice(0, 50);\n        break;\n\n    case 'meeting':\n        // Initialize meeting object if needed\n        if (!data.nextMeeting) {\n            data.nextMeeting = {};\n        }\n\n        // Store the meeting field\n        if (msg.meetingField) {\n            data.nextMeeting[msg.meetingField] = msg.value;\n\n            // Convert current field to boolean for isCurrent\n            if (msg.meetingField === 'current') {\n                data.nextMeeting.isCurrent = (msg.value === 'true');\n            }\n\n            // Clear meeting if title is empty\n            if (msg.meetingField === 'title' && (!msg.value || msg.value === '')) {\n                data.nextMeeting = null;\n            }\n        }\n        break;\n}\n\n// Calculate online status (20 second timeout)\nconst TIMEOUT_MS = 20000;\nconst now = Date.now();\ndata.online = (data.lastSeen && (now - data.lastSeen) < TIMEOUT_MS);\n\n// Save and send\ncontext.set(contextKey, data);\nreturn data;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 600,
+        "y": 140,
+        "wires": [
+            [
+                "5afbaf6551c95ab2"
+            ]
+        ]
+    },
+    {
+        "id": "d68b75c1b29ce739",
+        "type": "function",
+        "z": "9ff7a1626b9efc3c",
+        "name": "Device 3 - Aggregate Data",
+        "func": "// ============================================\n// DEVICE CONFIGURATION - CHANGE THIS  ONLY\n// ============================================\nconst DEVICE_ID = \"device3\";  // ← Change to device2, device3, device4, device5\n// ============================================\n\n// --- Handle periodic online status check ---\nif (msg.topic === \"check_online\") {\n    const contextKey = DEVICE_ID + 'data';\n    let data = context.get(contextKey) || { online: false };\n    \n    const TIMEOUT_MS = 20000;\n    const now = Date.now();\n    data.online = (data.lastSeen && (now - data.lastSeen) < TIMEOUT_MS);\n    \n    context.set(contextKey, data);\n    return data;\n}\n\n// Filter for this device only\nif (msg.deviceId !== DEVICE_ID) {\n    return null;\n}\n\n// Initialize context storage\nconst contextKey = DEVICE_ID + 'data';\nlet data = context.get(contextKey) || {\n    leds: { red: false, green: false, blue: false, yellow: false, white: false },\n    status: 'UNKNOWN',\n    statusColor: 'gray',\n    online: false,\n    mode: 'UNKNOWN',\n    ip: '0.0.0.0',\n    logs: [],\n    nextMeeting: null\n};\n\n//On Node-RED restart, assume offline until we get fresh lwt\nif (flow.get('justStarted') === undefined) {\n    flow.set('justStarted', true);\n    data.online = false;\n}\n// Update last seen timestamp for ANY message\ndata.lastSeen = Date.now();\n\n// Update based on message type\nswitch (msg.dataType) {\n    case 'active_led':\n        data.leds = {\n            red: (msg.value === 'RED'),\n            green: (msg.value === 'GREEN'),\n            blue: (msg.value === 'BLUE'),\n            yellow: (msg.value === 'YELLOW'),\n            white: (msg.value === 'WHITE')\n        };\n        break;\n\n    case 'status':\n        data.status = msg.value.toUpperCase();\n        const colors = {\n            'BUSY': 'red',\n            'FREE': 'green',\n            'REMOTE': 'blue',\n            'OFF_HOURS': 'gray',\n            'UNKNOWN': 'orange'\n        };\n        data.statusColor = colors[data.status] || 'gray';\n        break;\n\n    case 'lwt':\n        data.online = (msg.value === 'online');\n        break;\n\n    case 'mode':\n        data.mode = msg.value.replace(/_/g, ' ');\n        break;\n\n    case 'ip':\n        data.ip = msg.value;\n        break;\n\n    case 'version':\n        data.version = msg.value;\n        break;\n    \n    case 'friendly_name':\n        data.friendlyName = msg.value;\n        break;\n\n    case 'log':\n        data.logs.unshift(msg.logEntry);\n        data.logs = data.logs.slice(0, 50);\n        break;\n\n    case 'meeting':\n        // Initialize meeting object if needed\n        if (!data.nextMeeting) {\n            data.nextMeeting = {};\n        }\n\n        // Store the meeting field\n        if (msg.meetingField) {\n            data.nextMeeting[msg.meetingField] = msg.value;\n\n            // Convert current field to boolean for isCurrent\n            if (msg.meetingField === 'current') {\n                data.nextMeeting.isCurrent = (msg.value === 'true');\n            }\n\n            // Clear meeting if title is empty\n            if (msg.meetingField === 'title' && (!msg.value || msg.value === '')) {\n                data.nextMeeting = null;\n            }\n        }\n        break;\n}\n\n// Calculate online status (20 second timeout)\nconst TIMEOUT_MS = 20000;\nconst now = Date.now();\ndata.online = (data.lastSeen && (now - data.lastSeen) < TIMEOUT_MS);\n\n// Save and send\ncontext.set(contextKey, data);\nreturn data;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 600,
+        "y": 200,
+        "wires": [
+            [
+                "082d9041411d89ee"
+            ]
+        ]
+    },
+    {
+        "id": "64110738b4be786f",
+        "type": "function",
+        "z": "9ff7a1626b9efc3c",
+        "name": "Device 4 - Aggregate Data",
+        "func": "// ============================================\n// DEVICE CONFIGURATION - CHANGE THIS  ONLY\n// ============================================\nconst DEVICE_ID = \"device4\";  // ← Change to device2, device3, device4, device5\n// ============================================\n\n// --- Handle periodic online status check ---\nif (msg.topic === \"check_online\") {\n    const contextKey = DEVICE_ID + 'data';\n    let data = context.get(contextKey) || { online: false };\n    \n    const TIMEOUT_MS = 20000;\n    const now = Date.now();\n    data.online = (data.lastSeen && (now - data.lastSeen) < TIMEOUT_MS);\n    \n    context.set(contextKey, data);\n    return data;\n}\n\n// Filter for this device only\nif (msg.deviceId !== DEVICE_ID) {\n    return null;\n}\n\n// Initialize context storage\nconst contextKey = DEVICE_ID + 'data';\nlet data = context.get(contextKey) || {\n    leds: { red: false, green: false, blue: false, yellow: false, white: false },\n    status: 'UNKNOWN',\n    statusColor: 'gray',\n    online: false,\n    mode: 'UNKNOWN',\n    ip: '0.0.0.0',\n    logs: [],\n    nextMeeting: null\n};\n\n//On Node-RED restart, assume offline until we get fresh lwt\nif (flow.get('justStarted') === undefined) {\n    flow.set('justStarted', true);\n    data.online = false;\n}\n// Update last seen timestamp for ANY message\ndata.lastSeen = Date.now();\n\n// Update based on message type\nswitch (msg.dataType) {\n    case 'active_led':\n        data.leds = {\n            red: (msg.value === 'RED'),\n            green: (msg.value === 'GREEN'),\n            blue: (msg.value === 'BLUE'),\n            yellow: (msg.value === 'YELLOW'),\n            white: (msg.value === 'WHITE')\n        };\n        break;\n\n    case 'status':\n        data.status = msg.value.toUpperCase();\n        const colors = {\n            'BUSY': 'red',\n            'FREE': 'green',\n            'REMOTE': 'blue',\n            'OFF_HOURS': 'gray',\n            'UNKNOWN': 'orange'\n        };\n        data.statusColor = colors[data.status] || 'gray';\n        break;\n\n    case 'lwt':\n        data.online = (msg.value === 'online');\n        break;\n\n    case 'mode':\n        data.mode = msg.value.replace(/_/g, ' ');\n        break;\n\n    case 'ip':\n        data.ip = msg.value;\n        break;\n\n    case 'version':\n        data.version = msg.value;\n        break;\n    \n    case 'friendly_name':\n        data.friendlyName = msg.value;\n        break;\n\n    case 'log':\n        data.logs.unshift(msg.logEntry);\n        data.logs = data.logs.slice(0, 50);\n        break;\n\n    case 'meeting':\n        // Initialize meeting object if needed\n        if (!data.nextMeeting) {\n            data.nextMeeting = {};\n        }\n\n        // Store the meeting field\n        if (msg.meetingField) {\n            data.nextMeeting[msg.meetingField] = msg.value;\n\n            // Convert current field to boolean for isCurrent\n            if (msg.meetingField === 'current') {\n                data.nextMeeting.isCurrent = (msg.value === 'true');\n            }\n\n            // Clear meeting if title is empty\n            if (msg.meetingField === 'title' && (!msg.value || msg.value === '')) {\n                data.nextMeeting = null;\n            }\n        }\n        break;\n}\n\n// Calculate online status (20 second timeout)\nconst TIMEOUT_MS = 20000;\nconst now = Date.now();\ndata.online = (data.lastSeen && (now - data.lastSeen) < TIMEOUT_MS);\n\n// Save and send\ncontext.set(contextKey, data);\nreturn data;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 600,
+        "y": 260,
+        "wires": [
+            [
+                "2028c9d1890d469f"
+            ]
+        ]
+    },
+    {
+        "id": "74811d0c19642e30",
+        "type": "function",
+        "z": "9ff7a1626b9efc3c",
+        "name": "MQTT Check",
+        "func": "// Mode commands pass through unchanged\nconst modeCommands = ['AUTO', 'DISCO', 'DOUBLE_DISCO', 'TIMETRAVEL', 'COLOR_CIRCLE'];\nif (modeCommands.includes(msg.payload)) {\n    context.set('activeLed', '');\n    return msg;\n}\n\n// Color toggle logic\nlet currentLed = context.get('activeLed') || '';\nif (currentLed === msg.payload) {\n    msg.payload = 'OFF';\n    context.set('activeLed', '');\n} else {\n    context.set('activeLed', msg.payload);\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 990,
+        "y": 80,
+        "wires": [
+            [
+                "680bc4ee787efedd"
+            ]
+        ]
+    },
+    {
+        "id": "6d479712640247c7",
+        "type": "function",
+        "z": "9ff7a1626b9efc3c",
+        "name": "MQTT Check",
+        "func": "// Mode commands pass through unchanged\nconst modeCommands = ['AUTO', 'DISCO', 'DOUBLE_DISCO', 'TIMETRAVEL', 'COLOR_CIRCLE'];\nif (modeCommands.includes(msg.payload)) {\n    context.set('activeLed', '');\n    return msg;\n}\n\n// Color toggle logic\nlet currentLed = context.get('activeLed') || '';\nif (currentLed === msg.payload) {\n    msg.payload = 'OFF';\n    context.set('activeLed', '');\n} else {\n    context.set('activeLed', msg.payload);\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 990,
+        "y": 140,
+        "wires": [
+            [
+                "a2c8d32c0d6d2db3"
+            ]
+        ]
+    },
+    {
+        "id": "7cfea6b051af048f",
+        "type": "function",
+        "z": "9ff7a1626b9efc3c",
+        "name": "MQTT Check",
+        "func": "// Mode commands pass through unchanged\nconst modeCommands = ['AUTO', 'DISCO', 'DOUBLE_DISCO', 'TIMETRAVEL', 'COLOR_CIRCLE'];\nif (modeCommands.includes(msg.payload)) {\n    context.set('activeLed', '');\n    return msg;\n}\n\n// Color toggle logic\nlet currentLed = context.get('activeLed') || '';\nif (currentLed === msg.payload) {\n    msg.payload = 'OFF';\n    context.set('activeLed', '');\n} else {\n    context.set('activeLed', msg.payload);\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 990,
+        "y": 200,
+        "wires": [
+            [
+                "70589ae617fe7aea"
+            ]
+        ]
+    },
+    {
+        "id": "dedcf31288ad3558",
+        "type": "function",
+        "z": "9ff7a1626b9efc3c",
+        "name": "MQTT Check",
+        "func": "// Mode commands pass through unchanged\nconst modeCommands = ['AUTO', 'DISCO', 'DOUBLE_DISCO', 'TIMETRAVEL', 'COLOR_CIRCLE'];\nif (modeCommands.includes(msg.payload)) {\n    context.set('activeLed', '');\n    return msg;\n}\n\n// Color toggle logic\nlet currentLed = context.get('activeLed') || '';\nif (currentLed === msg.payload) {\n    msg.payload = 'OFF';\n    context.set('activeLed', '');\n} else {\n    context.set('activeLed', msg.payload);\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 990,
+        "y": 260,
+        "wires": [
+            [
+                "df24476a7fb799e5"
+            ]
+        ]
+    },
+    {
+        "id": "04fea45fc553d28c",
+        "type": "function",
+        "z": "9ff7a1626b9efc3c",
+        "name": "MQTT Check",
+        "func": "// Mode commands pass through unchanged\nconst modeCommands = ['AUTO', 'DISCO', 'DOUBLE_DISCO', 'TIMETRAVEL', 'COLOR_CIRCLE'];\nif (modeCommands.includes(msg.payload)) {\n    context.set('activeLed', '');\n    return msg;\n}\n\n// Color toggle logic\nlet currentLed = context.get('activeLed') || '';\nif (currentLed === msg.payload) {\n    msg.payload = 'OFF';\n    context.set('activeLed', '');\n} else {\n    context.set('activeLed', msg.payload);\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 990,
+        "y": 320,
+        "wires": [
+            [
+                "f79e79441132d522"
+            ]
+        ]
+    },
+    {
+        "id": "f79e79441132d522",
+        "type": "mqtt out",
+        "z": "9ff7a1626b9efc3c",
+        "name": "",
+        "topic": "busylight/device5/command",
+        "qos": "1",
+        "retain": "false",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "8117f776ae8fa306",
+        "x": 1220,
+        "y": 320,
+        "wires": []
+    },
+    {
+        "id": "680bc4ee787efedd",
+        "type": "mqtt out",
+        "z": "9ff7a1626b9efc3c",
+        "name": "",
+        "topic": "busylight/device1/command",
+        "qos": "1",
+        "retain": "false",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "8117f776ae8fa306",
+        "x": 1220,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "a2c8d32c0d6d2db3",
+        "type": "mqtt out",
+        "z": "9ff7a1626b9efc3c",
+        "name": "",
+        "topic": "busylight/device2/command",
+        "qos": "1",
+        "retain": "false",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "8117f776ae8fa306",
+        "x": 1220,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "70589ae617fe7aea",
+        "type": "mqtt out",
+        "z": "9ff7a1626b9efc3c",
+        "name": "",
+        "topic": "busylight/device3/command",
+        "qos": "1",
+        "retain": "false",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "8117f776ae8fa306",
+        "x": 1220,
+        "y": 200,
+        "wires": []
+    },
+    {
+        "id": "df24476a7fb799e5",
+        "type": "mqtt out",
+        "z": "9ff7a1626b9efc3c",
+        "name": "",
+        "topic": "busylight/device4/command",
+        "qos": "1",
+        "retain": "false",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "8117f776ae8fa306",
+        "x": 1220,
+        "y": 260,
+        "wires": []
+    },
+    {
+        "id": "afbb0f355178b237",
+        "type": "mqtt in",
+        "z": "9ff7a1626b9efc3c",
+        "name": "",
+        "topic": "busylight/#",
+        "qos": "2",
+        "datatype": "utf8",
+        "broker": "8117f776ae8fa306",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 80,
+        "y": 240,
+        "wires": [
+            [
+                "acc72b51f686726b"
+            ]
+        ]
+    },
+    {
+        "id": "1c08015b4e90089d",
+        "type": "ui_template",
+        "z": "9ff7a1626b9efc3c",
+        "group": "8b4c82f6994c7feb",
+        "name": "",
+        "order": 0,
+        "width": "8",
+        "height": "6",
+        "format": "<div style=\"padding: 10px; font-family: Arial, sans-serif;\">\n\n    <!-- Device Status Header -->\n    <h2 style=\"margin: 0 0 15px 0; font-size: 22px; color: #333;\">Device Status</h2>\n\n    <!-- All Devices Status -->\n    <div style=\"margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #ddd;\">\n        <div style=\"display: flex; flex-direction: column; gap: 8px; padding-left: 10px;\">\n            <a href=\"#!/1\" style=\"text-decoration: none; display: flex; align-items: center; gap: 10px;\">\n                <div style=\"width: 15px; height: 15px; border-radius: 50%; flex-shrink: 0;\"\n                    ng-style=\"{'background': msg.payload.dev1online ? '#00ff00' : '#ff0000'}\"></div>\n                <div style=\"font-size: 14px; color: #0088cc;\">{{msg.payload.dev1name}}</div>\n            </a>\n            <a href=\"#!/2\" style=\"text-decoration: none; display: flex; align-items: center; gap: 10px;\">\n                <div style=\"width: 15px; height: 15px; border-radius: 50%; flex-shrink: 0;\"\n                    ng-style=\"{'background': msg.payload.dev2online ? '#00ff00' : '#ff0000'}\"></div>\n                <div style=\"font-size: 14px; color: #0088cc;\">{{msg.payload.dev2name}}</div>\n            </a>\n            <a href=\"#!/3\" style=\"text-decoration: none; display: flex; align-items: center; gap: 10px;\">\n                <div style=\"width: 15px; height: 15px; border-radius: 50%; flex-shrink: 0;\"\n                    ng-style=\"{'background': msg.payload.dev3online ? '#00ff00' : '#ff0000'}\"></div>\n                <div style=\"font-size: 14px; color: #0088cc;\">{{msg.payload.dev3name}}</div>\n            </a>\n            <a href=\"#!/4\" style=\"text-decoration: none; display: flex; align-items: center; gap: 10px;\">\n                <div style=\"width: 15px; height: 15px; border-radius: 50%; flex-shrink: 0;\"\n                    ng-style=\"{'background': msg.payload.dev4online ? '#00ff00' : '#ff0000'}\"></div>\n                <div style=\"font-size: 14px; color: #0088cc;\">{{msg.payload.dev4name}}</div>\n            </a>\n            <a href=\"#!/5\" style=\"text-decoration: none; display: flex; align-items: center; gap: 10px;\">\n                <div style=\"width: 15px; height: 15px; border-radius: 50%; flex-shrink: 0;\"\n                    ng-style=\"{'background': msg.payload.dev5online ? '#00ff00' : '#ff0000'}\"></div>\n                <div style=\"font-size: 14px; color: #0088cc;\">{{msg.payload.dev5name}}</div>\n            </a>\n        </div>\n    </div>\n\n    <!-- Color Controls -->\n    <div style=\"margin-bottom: 15px;\">\n        <div style=\"display: flex; gap: 6px; justify-content: center;\">\n            <button ng-click=\"send({payload: 'RED'})\" style=\"width: 30px; height: 30px; background: #ff0000; border: 2px solid #000; border-radius: 50%; cursor: pointer; padding: 0;\"></button>\n            <button ng-click=\"send({payload: 'GREEN'})\" style=\"width: 30px; height: 30px; background: #00ff00; border: 2px solid #000; border-radius: 50%; cursor: pointer; padding: 0;\"></button>\n            <button ng-click=\"send({payload: 'BLUE'})\" style=\"width: 30px; height: 30px; background: #0000ff; border: 2px solid #000; border-radius: 50%; cursor: pointer; padding: 0;\"></button>\n            <button ng-click=\"send({payload: 'YELLOW'})\" style=\"width: 30px; height: 30px; background: #ffff00; border: 2px solid #000; border-radius: 50%; cursor: pointer; padding: 0;\"></button>\n            <button ng-click=\"send({payload: 'WHITE'})\" style=\"width: 30px; height: 30px; background: #ffffff; border: 2px solid #000; border-radius: 50%; cursor: pointer; padding: 0;\"></button>\n            <button ng-click=\"send({payload: 'OFF'})\" style=\"width: 30px; height: 30px; background: #333; border: 2px solid #000; border-radius: 50%; cursor: pointer; padding: 0;\"></button>\n        </div>\n    </div>\n\n    <!-- Mode Controls -->\n    <div>\n        <div style=\"display: flex; gap: 5px;\">\n            <button ng-click=\"send({payload: 'AUTO'})\" style=\"flex: 1; padding: 8px; background: #0088cc; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">AUTO</button>\n            <button ng-click=\"send({payload: 'DISCO'})\" style=\"flex: 1; padding: 8px; background: #0088cc; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">DISCO</button>\n            <button ng-click=\"send({payload: 'TIMETRAVEL'})\" style=\"flex: 1; padding: 8px; background: #0088cc; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">TIME</button>\n            <button ng-click=\"send({payload: 'DOUBLE_DISCO'})\" style=\"flex: 1; padding: 8px; background: #0088cc; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">DOUBLE</button>\n            <button ng-click=\"send({payload: 'COLOR_CIRCLE'})\" style=\"flex: 1; padding: 8px; background: #0088cc; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">CIRCLE</button>\n        </div>\n    </div>\n</div>",
+        "storeOutMessages": true,
+        "fwdInMessages": false,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 680,
+        "y": 400,
+        "wires": [
+            [
+                "533a6c05a926d531"
+            ]
+        ]
+    },
+    {
+        "id": "a0ef7f3b9bf5f3ba",
+        "type": "ui_template",
+        "z": "9ff7a1626b9efc3c",
+        "group": "c4b41e6e1cfb4443",
+        "name": "",
+        "order": 0,
+        "width": "0",
+        "height": "0",
+        "format": "<div ng-style=\"!msg.online && {'opacity': '0.5', 'pointer-events': 'none'}\"\n    style=\"padding: 10px; font-family: Arial, sans-serif;\">\n    <!-- Offline Banner -->\n    <div ng-if=\"!msg.online\"\n        style=\"background: #ffcccc; border: 2px solid #ff0000; padding: 10px; margin-bottom: 15px; text-align: center; font-weight: bold; color: #cc0000; border-radius: 4px;\">\n        ⚠️ DEVICE OFFLINE ⚠️\n    </div>\n\n    <!-- Friendly Name as Page Title -->\n    <h2 style=\"margin: 0 0 10px 0; font-size: 22px; color: #333;\">\n        <span ng-if=\"msg.friendlyName\">{{msg.friendlyName}}</span>\n        <span ng-if=\"!msg.friendlyName\" style=\"color: #999; font-style: italic;\">Unnamed Device</span>\n    </h2>\n\n    <!-- Edit Name Box -->\n    <div style=\"background: #e8f5e9; padding: 8px; border-radius: 4px; margin-bottom: 10px;\">\n        <div style=\"display: flex; justify-content: flex-end;\">\n            <button ng-click=\"showNameEdit = !showNameEdit\"\n                    style=\"padding: 4px 8px; font-size: 11px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer;\">\n                {{showNameEdit ? 'Cancel' : 'Edit Name'}}\n            </button>\n        </div>\n        <div ng-if=\"showNameEdit\" style=\"margin-top: 8px; display: flex; gap: 5px;\">\n            <input type=\"text\" ng-model=\"newName\" placeholder=\"Enter friendly name\"\n                   style=\"flex: 1; padding: 5px; border: 1px solid #ccc; border-radius: 3px;\">\n            <button ng-click=\"send({payload: 'SETNAME:' + newName}); showNameEdit = false; newName = '';\"\n                    style=\"padding: 5px 10px; background: #2196F3; color: white; border: none; border-radius: 3px; cursor: pointer;\">\n                Save\n            </button>\n        </div>\n    </div>\n\n    <!-- LED Bar (centered) -->\n    <div style=\"text-align: center; margin-bottom: 15px;\">\n        <div style=\"display: inline-flex; gap: 6px;\">\n            <div class=\"led-box clickable\" ng-class=\"{'active-red': msg.online && msg.leds.red}\"\n                ng-click=\"msg.online && send({payload: 'RED'})\">\n            </div>\n            <div class=\"led-box clickable\" ng-class=\"{'active-green': msg.online && msg.leds.green}\"\n                ng-click=\"msg.online && send({payload: 'GREEN'})\"></div>\n            <div class=\"led-box clickable\" ng-class=\"{'active-blue': msg.online && msg.leds.blue}\"\n                ng-click=\"msg.online && send({payload: 'BLUE'})\">\n            </div>\n            <div class=\"led-box clickable\" ng-class=\"{'active-yellow': msg.online && msg.leds.yellow}\"\n                ng-click=\"msg.online && send({payload: 'YELLOW'})\"></div>\n            <div class=\"led-box clickable\" ng-class=\"{'active-white': msg.online && msg.leds.white}\"\n                ng-click=\"msg.online && send({payload: 'WHITE'})\"></div>\n        </div>\n    </div>\n\n    <!-- Status & Connection -->\n    <div style=\"display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;\">\n        <div><strong>Status:</strong>\n            <span ng-if=\"msg.online\" ng-style=\"{'color': msg.statusColor}\">{{msg.status}}</span>\n            <span ng-if=\"!msg.online\" style=\"color: #999;\">OFFLINE</span>\n        </div>\n        <div><strong>Connection:</strong>\n            <span ng-style=\"{'color': msg.online ? 'green' : 'red'}\">{{msg.online ? 'Online' : 'Offline'}}</span>\n        </div>\n    </div>\n\n    <!-- Mode, IP & Version -->\n    <div style=\"display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px;\">\n        <div><strong>Mode:</strong>\n            <span ng-if=\"msg.online\">{{msg.mode}}</span>\n            <span ng-if=\"!msg.online\" style=\"color: #999;\">--</span>\n        </div>\n        <div><strong>IP:</strong>\n            <span ng-if=\"msg.online\">{{msg.ip}}</span>\n            <span ng-if=\"!msg.online\" style=\"color: #999;\">--</span>\n        </div>\n        <div><strong>Ver:</strong>\n            <span ng-if=\"msg.online\" style=\"font-size: 11px; color: #666;\">{{msg.version}}</span>\n            <span ng-if=\"!msg.online\" style=\"color: #999;\">--</span>\n        </div>\n    </div>\n\n    <!-- Next Meeting Info -->\n    <div ng-if=\"msg.online\"\n        style=\"background: #e3f2fd; padding: 6px; border-radius: 4px; margin-bottom: 10px; font-size: 12px;\">\n        <div ng-if=\"msg.nextMeeting && msg.nextMeeting.isCurrent\">\n            <strong>Current:</strong> {{msg.nextMeeting.title}}<br>\n            <span style=\"font-size: 11px; color: #666;\">Ends at {{msg.nextMeeting.end}}</span>\n        </div>\n        <div ng-if=\"msg.nextMeeting && !msg.nextMeeting.isCurrent\">\n            <strong>Next:</strong> {{msg.nextMeeting.title}}<br>\n            <span style=\"font-size: 11px; color: #666;\">{{msg.nextMeeting.date}} at {{msg.nextMeeting.start}}</span>\n        </div>\n        <div ng-if=\"!msg.nextMeeting\" style=\"color: #999; font-style: italic;\">\n            No upcoming meetings\n        </div>\n    </div>\n    <div ng-if=\"!msg.online\"\n        style=\"background: #f0f0f0; padding: 6px; border-radius: 4px; margin-bottom: 10px; font-size: 12px; color: #999; font-style: italic; text-align: center;\">\n        Meeting info unavailable\n    </div>\n\n    <!-- Activity Log -->\n    <div\n        style=\"background: #f5f5f5; padding: 8px; border-radius: 4px; margin-bottom: 15px; font-size: 12px; font-family: monospace; height: 250px; overflow-y: auto;\">\n        <div ng-if=\"msg.online\" ng-repeat=\"log in msg.logs track by $index\">{{log}}</div>\n        <div ng-if=\"!msg.online\" style=\"color: #999; font-style: italic;\">Device offline - no recent activity</div>\n    </div>\n\n    <!-- Control Buttons with Active Highlighting -->\n    <div style=\"display: flex; gap: 5px; flex-wrap: wrap;\">\n        <button ng-click=\"msg.online && send({payload: 'AUTO'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'AUTO' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">AUTO</button>\n        <button ng-click=\"msg.online && send({payload: 'DISCO'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'DISCO' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">DISCO</button>\n        <button ng-click=\"msg.online && send({payload: 'TIMETRAVEL'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'TIMETRAVEL' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">TIME</button>\n        <button ng-click=\"msg.online && send({payload: 'DOUBLE_DISCO'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'DOUBLE DISCO' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">DOUBLE</button>\n        <button ng-click=\"msg.online && send({payload: 'COLOR_CIRCLE'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'COLOR CIRCLE' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">CIRCLE</button>\n    </div>\n</div>\n\n<style>\n    .led-box {\n        width: 20px;\n        height: 20px;\n        border: 2px solid #000;\n        border-radius: 50%;\n        background: transparent;\n        transition: all 0.2s ease;\n    }\n\n    .led-box.clickable {\n        cursor: pointer;\n    }\n\n    .led-box.clickable:hover {\n        transform: scale(1.2);\n        transition: transform 0.1s ease;\n    }\n\n    .led-box.active-red {\n        background: #ff0000;\n        border: 3px solid #000;\n    }\n\n    .led-box.active-green {\n        background: #00ff00;\n        border: 3px solid #000;\n    }\n\n    .led-box.active-blue {\n        background: #0000ff;\n        border: 3px solid #000;\n    }\n\n    .led-box.active-yellow {\n        background: #ffff00;\n        border: 3px solid #000;\n    }\n\n    .led-box.active-white {\n        background: #ffffff;\n        border: 3px solid #000;\n    }\n\n    button:disabled {\n        opacity: 0.5;\n        cursor: not-allowed !important;\n    }\n</style>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 820,
+        "y": 320,
+        "wires": [
+            [
+                "04fea45fc553d28c"
+            ]
+        ]
+    },
+    {
+        "id": "4c50bdacc906e12c",
+        "type": "ui_template",
+        "z": "9ff7a1626b9efc3c",
+        "group": "315c6cd0b260a8dc",
+        "name": "",
+        "order": 0,
+        "width": "0",
+        "height": "0",
+        "format": "<div ng-style=\"!msg.online && {'opacity': '0.5', 'pointer-events': 'none'}\"\n    style=\"padding: 10px; font-family: Arial, sans-serif;\">\n    <!-- Offline Banner -->\n    <div ng-if=\"!msg.online\"\n        style=\"background: #ffcccc; border: 2px solid #ff0000; padding: 10px; margin-bottom: 15px; text-align: center; font-weight: bold; color: #cc0000; border-radius: 4px;\">\n        ⚠️ DEVICE OFFLINE ⚠️\n    </div>\n\n    <!-- Friendly Name as Page Title -->\n    <h2 style=\"margin: 0 0 10px 0; font-size: 22px; color: #333;\">\n        <span ng-if=\"msg.friendlyName\">{{msg.friendlyName}}</span>\n        <span ng-if=\"!msg.friendlyName\" style=\"color: #999; font-style: italic;\">Unnamed Device</span>\n    </h2>\n\n    <!-- Edit Name Box -->\n    <div style=\"background: #e8f5e9; padding: 8px; border-radius: 4px; margin-bottom: 10px;\">\n        <div style=\"display: flex; justify-content: flex-end;\">\n            <button ng-click=\"showNameEdit = !showNameEdit\"\n                    style=\"padding: 4px 8px; font-size: 11px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer;\">\n                {{showNameEdit ? 'Cancel' : 'Edit Name'}}\n            </button>\n        </div>\n        <div ng-if=\"showNameEdit\" style=\"margin-top: 8px; display: flex; gap: 5px;\">\n            <input type=\"text\" ng-model=\"newName\" placeholder=\"Enter friendly name\"\n                   style=\"flex: 1; padding: 5px; border: 1px solid #ccc; border-radius: 3px;\">\n            <button ng-click=\"send({payload: 'SETNAME:' + newName}); showNameEdit = false; newName = '';\"\n                    style=\"padding: 5px 10px; background: #2196F3; color: white; border: none; border-radius: 3px; cursor: pointer;\">\n                Save\n            </button>\n        </div>\n    </div>\n\n    <!-- LED Bar (centered) -->\n    <div style=\"text-align: center; margin-bottom: 15px;\">\n        <div style=\"display: inline-flex; gap: 6px;\">\n            <div class=\"led-box clickable\" ng-class=\"{'active-red': msg.online && msg.leds.red}\"\n                ng-click=\"msg.online && send({payload: 'RED'})\">\n            </div>\n            <div class=\"led-box clickable\" ng-class=\"{'active-green': msg.online && msg.leds.green}\"\n                ng-click=\"msg.online && send({payload: 'GREEN'})\"></div>\n            <div class=\"led-box clickable\" ng-class=\"{'active-blue': msg.online && msg.leds.blue}\"\n                ng-click=\"msg.online && send({payload: 'BLUE'})\">\n            </div>\n            <div class=\"led-box clickable\" ng-class=\"{'active-yellow': msg.online && msg.leds.yellow}\"\n                ng-click=\"msg.online && send({payload: 'YELLOW'})\"></div>\n            <div class=\"led-box clickable\" ng-class=\"{'active-white': msg.online && msg.leds.white}\"\n                ng-click=\"msg.online && send({payload: 'WHITE'})\"></div>\n        </div>\n    </div>\n\n    <!-- Status & Connection -->\n    <div style=\"display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;\">\n        <div><strong>Status:</strong>\n            <span ng-if=\"msg.online\" ng-style=\"{'color': msg.statusColor}\">{{msg.status}}</span>\n            <span ng-if=\"!msg.online\" style=\"color: #999;\">OFFLINE</span>\n        </div>\n        <div><strong>Connection:</strong>\n            <span ng-style=\"{'color': msg.online ? 'green' : 'red'}\">{{msg.online ? 'Online' : 'Offline'}}</span>\n        </div>\n    </div>\n\n    <!-- Mode, IP & Version -->\n    <div style=\"display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px;\">\n        <div><strong>Mode:</strong>\n            <span ng-if=\"msg.online\">{{msg.mode}}</span>\n            <span ng-if=\"!msg.online\" style=\"color: #999;\">--</span>\n        </div>\n        <div><strong>IP:</strong>\n            <span ng-if=\"msg.online\">{{msg.ip}}</span>\n            <span ng-if=\"!msg.online\" style=\"color: #999;\">--</span>\n        </div>\n        <div><strong>Ver:</strong>\n            <span ng-if=\"msg.online\" style=\"font-size: 11px; color: #666;\">{{msg.version}}</span>\n            <span ng-if=\"!msg.online\" style=\"color: #999;\">--</span>\n        </div>\n    </div>\n\n    <!-- Next Meeting Info -->\n    <div ng-if=\"msg.online\"\n        style=\"background: #e3f2fd; padding: 6px; border-radius: 4px; margin-bottom: 10px; font-size: 12px;\">\n        <div ng-if=\"msg.nextMeeting && msg.nextMeeting.isCurrent\">\n            <strong>Current:</strong> {{msg.nextMeeting.title}}<br>\n            <span style=\"font-size: 11px; color: #666;\">Ends at {{msg.nextMeeting.end}}</span>\n        </div>\n        <div ng-if=\"msg.nextMeeting && !msg.nextMeeting.isCurrent\">\n            <strong>Next:</strong> {{msg.nextMeeting.title}}<br>\n            <span style=\"font-size: 11px; color: #666;\">{{msg.nextMeeting.date}} at {{msg.nextMeeting.start}}</span>\n        </div>\n        <div ng-if=\"!msg.nextMeeting\" style=\"color: #999; font-style: italic;\">\n            No upcoming meetings\n        </div>\n    </div>\n    <div ng-if=\"!msg.online\"\n        style=\"background: #f0f0f0; padding: 6px; border-radius: 4px; margin-bottom: 10px; font-size: 12px; color: #999; font-style: italic; text-align: center;\">\n        Meeting info unavailable\n    </div>\n\n    <!-- Activity Log -->\n    <div\n        style=\"background: #f5f5f5; padding: 8px; border-radius: 4px; margin-bottom: 15px; font-size: 12px; font-family: monospace; height: 250px; overflow-y: auto;\">\n        <div ng-if=\"msg.online\" ng-repeat=\"log in msg.logs track by $index\">{{log}}</div>\n        <div ng-if=\"!msg.online\" style=\"color: #999; font-style: italic;\">Device offline - no recent activity</div>\n    </div>\n\n    <!-- Control Buttons with Active Highlighting -->\n    <div style=\"display: flex; gap: 5px; flex-wrap: wrap;\">\n        <button ng-click=\"msg.online && send({payload: 'AUTO'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'AUTO' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">AUTO</button>\n        <button ng-click=\"msg.online && send({payload: 'DISCO'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'DISCO' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">DISCO</button>\n        <button ng-click=\"msg.online && send({payload: 'TIMETRAVEL'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'TIMETRAVEL' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">TIME</button>\n        <button ng-click=\"msg.online && send({payload: 'DOUBLE_DISCO'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'DOUBLE DISCO' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">DOUBLE</button>\n        <button ng-click=\"msg.online && send({payload: 'COLOR_CIRCLE'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'COLOR CIRCLE' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">CIRCLE</button>\n    </div>\n</div>\n\n<style>\n    .led-box {\n        width: 20px;\n        height: 20px;\n        border: 2px solid #000;\n        border-radius: 50%;\n        background: transparent;\n        transition: all 0.2s ease;\n    }\n\n    .led-box.clickable {\n        cursor: pointer;\n    }\n\n    .led-box.clickable:hover {\n        transform: scale(1.2);\n        transition: transform 0.1s ease;\n    }\n\n    .led-box.active-red {\n        background: #ff0000;\n        border: 3px solid #000;\n    }\n\n    .led-box.active-green {\n        background: #00ff00;\n        border: 3px solid #000;\n    }\n\n    .led-box.active-blue {\n        background: #0000ff;\n        border: 3px solid #000;\n    }\n\n    .led-box.active-yellow {\n        background: #ffff00;\n        border: 3px solid #000;\n    }\n\n    .led-box.active-white {\n        background: #ffffff;\n        border: 3px solid #000;\n    }\n\n    button:disabled {\n        opacity: 0.5;\n        cursor: not-allowed !important;\n    }\n</style>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 820,
+        "y": 80,
+        "wires": [
+            [
+                "74811d0c19642e30"
+            ]
+        ]
+    },
+    {
+        "id": "5afbaf6551c95ab2",
+        "type": "ui_template",
+        "z": "9ff7a1626b9efc3c",
+        "group": "04cd4c427da2bd28",
+        "name": "",
+        "order": 0,
+        "width": "0",
+        "height": "0",
+        "format": "<div ng-style=\"!msg.online && {'opacity': '0.5', 'pointer-events': 'none'}\" style=\"padding: 10px; font-family: Arial, sans-serif;\">\n    <!-- Offline Banner -->\n    <div ng-if=\"!msg.online\" style=\"background: #ffcccc; border: 2px solid #ff0000; padding: 10px; margin-bottom: 15px; text-align: center; font-weight: bold; color: #cc0000; border-radius: 4px;\">\n        ⚠️ DEVICE OFFLINE ⚠️\n    </div>\n    \n    <!-- Friendly Name as Page Title -->\n    <h2 style=\"margin: 0 0 10px 0; font-size: 22px; color: #333;\">\n        <span ng-if=\"msg.friendlyName\">{{msg.friendlyName}}</span>\n        <span ng-if=\"!msg.friendlyName\" style=\"color: #999; font-style: italic;\">Unnamed Device</span>\n    </h2>\n    \n    <!-- Edit Name Box -->\n    <div style=\"background: #e8f5e9; padding: 8px; border-radius: 4px; margin-bottom: 10px;\">\n        <div style=\"display: flex; justify-content: flex-end;\">\n            <button ng-click=\"showNameEdit = !showNameEdit\" \n                    style=\"padding: 4px 8px; font-size: 11px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer;\">\n                {{showNameEdit ? 'Cancel' : 'Edit Name'}}\n            </button>\n        </div>\n        <div ng-if=\"showNameEdit\" style=\"margin-top: 8px; display: flex; gap: 5px;\">\n            <input type=\"text\" ng-model=\"newName\" placeholder=\"Enter friendly name\" \n                   style=\"flex: 1; padding: 5px; border: 1px solid #ccc; border-radius: 3px;\">\n            <button ng-click=\"send({payload: 'SETNAME:' + newName}); showNameEdit = false; newName = '';\"\n                    style=\"padding: 5px 10px; background: #2196F3; color: white; border: none; border-radius: 3px; cursor: pointer;\">\n                Save\n            </button>\n        </div>\n    </div>\n\n    <!-- LED Bar (centered) -->\n    <div style=\"text-align: center; margin-bottom: 15px;\">\n        <div style=\"display: inline-flex; gap: 6px;\">\n            <div class=\"led-box clickable\" ng-class=\"{'active-red': msg.online && msg.leds.red}\" ng-click=\"msg.online && send({payload: 'RED'})\">\n            </div>\n            <div class=\"led-box clickable\" ng-class=\"{'active-green': msg.online && msg.leds.green}\"\n                ng-click=\"msg.online && send({payload: 'GREEN'})\"></div>\n            <div class=\"led-box clickable\" ng-class=\"{'active-blue': msg.online && msg.leds.blue}\" ng-click=\"msg.online && send({payload: 'BLUE'})\">\n            </div>\n            <div class=\"led-box clickable\" ng-class=\"{'active-yellow': msg.online && msg.leds.yellow}\"\n                ng-click=\"msg.online && send({payload: 'YELLOW'})\"></div>\n            <div class=\"led-box clickable\" ng-class=\"{'active-white': msg.online && msg.leds.white}\"\n                ng-click=\"msg.online && send({payload: 'WHITE'})\"></div>\n        </div>\n    </div>\n\n    <!-- Status & Connection -->\n    <div style=\"display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;\">\n        <div><strong>Status:</strong> \n            <span ng-if=\"msg.online\" ng-style=\"{'color': msg.statusColor}\">{{msg.status}}</span>\n            <span ng-if=\"!msg.online\" style=\"color: #999;\">OFFLINE</span>\n        </div>\n        <div><strong>Connection:</strong>\n            <span ng-style=\"{'color': msg.online ? 'green' : 'red'}\">{{msg.online ? 'Online' : 'Offline'}}</span>\n        </div>\n    </div>\n\n    <!-- Mode, IP & Version -->\n    <div style=\"display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px;\">\n        <div><strong>Mode:</strong> \n            <span ng-if=\"msg.online\">{{msg.mode}}</span>\n            <span ng-if=\"!msg.online\" style=\"color: #999;\">--</span>\n        </div>\n        <div><strong>IP:</strong> \n            <span ng-if=\"msg.online\">{{msg.ip}}</span>\n            <span ng-if=\"!msg.online\" style=\"color: #999;\">--</span>\n        </div>\n        <div><strong>Ver:</strong> \n            <span ng-if=\"msg.online\" style=\"font-size: 11px; color: #666;\">{{msg.version}}</span>\n            <span ng-if=\"!msg.online\" style=\"color: #999;\">--</span>\n        </div>\n    </div>\n\n    <!-- Next Meeting Info -->\n    <div ng-if=\"msg.online\" style=\"background: #e3f2fd; padding: 6px; border-radius: 4px; margin-bottom: 10px; font-size: 12px;\">\n        <div ng-if=\"msg.nextMeeting && msg.nextMeeting.isCurrent\">\n            <strong>Current:</strong> {{msg.nextMeeting.title}}<br>\n            <span style=\"font-size: 11px; color: #666;\">Ends at {{msg.nextMeeting.end}}</span>\n        </div>\n        <div ng-if=\"msg.nextMeeting && !msg.nextMeeting.isCurrent\">\n            <strong>Next:</strong> {{msg.nextMeeting.title}}<br>\n            <span style=\"font-size: 11px; color: #666;\">{{msg.nextMeeting.date}} at {{msg.nextMeeting.start}}</span>\n        </div>\n        <div ng-if=\"!msg.nextMeeting\" style=\"color: #999; font-style: italic;\">\n            No upcoming meetings\n        </div>\n    </div>\n    <div ng-if=\"!msg.online\" style=\"background: #f0f0f0; padding: 6px; border-radius: 4px; margin-bottom: 10px; font-size: 12px; color: #999; font-style: italic; text-align: center;\">\n        Meeting info unavailable\n    </div>\n\n    <!-- Activity Log -->\n    <div\n        style=\"background: #f5f5f5; padding: 8px; border-radius: 4px; margin-bottom: 15px; font-size: 12px; font-family: monospace; height: 250px; overflow-y: auto;\">\n        <div ng-if=\"msg.online\" ng-repeat=\"log in msg.logs track by $index\">{{log}}</div>\n        <div ng-if=\"!msg.online\" style=\"color: #999; font-style: italic;\">Device offline - no recent activity</div>\n    </div>\n\n    <!-- Control Buttons with Active Highlighting -->\n    <div style=\"display: flex; gap: 5px; flex-wrap: wrap;\">\n        <button ng-click=\"msg.online && send({payload: 'AUTO'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'AUTO' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">AUTO</button>\n        <button ng-click=\"msg.online && send({payload: 'DISCO'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'DISCO' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">DISCO</button>\n        <button ng-click=\"msg.online && send({payload: 'TIMETRAVEL'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'TIMETRAVEL' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">TIME</button>\n        <button ng-click=\"msg.online && send({payload: 'DOUBLE_DISCO'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'DOUBLE DISCO' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">DOUBLE</button>\n        <button ng-click=\"msg.online && send({payload: 'COLOR_CIRCLE'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'COLOR CIRCLE' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">CIRCLE</button>\n    </div>\n</div>\n\n<style>\n    .led-box {\n        width: 20px;\n        height: 20px;\n        border: 2px solid #000;\n        border-radius: 50%;\n        background: transparent;\n        transition: all 0.2s ease;\n    }\n\n    .led-box.clickable {\n        cursor: pointer;\n    }\n\n    .led-box.clickable:hover {\n        transform: scale(1.2);\n        transition: transform 0.1s ease;\n    }\n\n    .led-box.active-red {\n        background: #ff0000;\n        border: 3px solid #000;\n    }\n\n    .led-box.active-green {\n        background: #00ff00;\n        border: 3px solid #000;\n    }\n\n    .led-box.active-blue {\n        background: #0000ff;\n        border: 3px solid #000;\n    }\n\n    .led-box.active-yellow {\n        background: #ffff00;\n        border: 3px solid #000;\n    }\n\n    .led-box.active-white {\n        background: #ffffff;\n        border: 3px solid #000;\n    }\n    \n    button:disabled {\n        opacity: 0.5;\n        cursor: not-allowed !important;\n    }\n</style>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 820,
+        "y": 140,
+        "wires": [
+            [
+                "6d479712640247c7"
+            ]
+        ]
+    },
+    {
+        "id": "082d9041411d89ee",
+        "type": "ui_template",
+        "z": "9ff7a1626b9efc3c",
+        "group": "797bb0db313e3371",
+        "name": "",
+        "order": 0,
+        "width": "0",
+        "height": "0",
+        "format": "<div ng-style=\"!msg.online && {'opacity': '0.5', 'pointer-events': 'none'}\" style=\"padding: 10px; font-family: Arial, sans-serif;\">\n    <!-- Offline Banner -->\n    <div ng-if=\"!msg.online\" style=\"background: #ffcccc; border: 2px solid #ff0000; padding: 10px; margin-bottom: 15px; text-align: center; font-weight: bold; color: #cc0000; border-radius: 4px;\">\n        ⚠️ DEVICE OFFLINE ⚠️\n    </div>\n    \n    <!-- Friendly Name as Page Title -->\n    <h2 style=\"margin: 0 0 10px 0; font-size: 22px; color: #333;\">\n        <span ng-if=\"msg.friendlyName\">{{msg.friendlyName}}</span>\n        <span ng-if=\"!msg.friendlyName\" style=\"color: #999; font-style: italic;\">Unnamed Device</span>\n    </h2>\n    \n    <!-- Edit Name Box -->\n    <div style=\"background: #e8f5e9; padding: 8px; border-radius: 4px; margin-bottom: 10px;\">\n        <div style=\"display: flex; justify-content: flex-end;\">\n            <button ng-click=\"showNameEdit = !showNameEdit\" \n                    style=\"padding: 4px 8px; font-size: 11px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer;\">\n                {{showNameEdit ? 'Cancel' : 'Edit Name'}}\n            </button>\n        </div>\n        <div ng-if=\"showNameEdit\" style=\"margin-top: 8px; display: flex; gap: 5px;\">\n            <input type=\"text\" ng-model=\"newName\" placeholder=\"Enter friendly name\" \n                   style=\"flex: 1; padding: 5px; border: 1px solid #ccc; border-radius: 3px;\">\n            <button ng-click=\"send({payload: 'SETNAME:' + newName}); showNameEdit = false; newName = '';\"\n                    style=\"padding: 5px 10px; background: #2196F3; color: white; border: none; border-radius: 3px; cursor: pointer;\">\n                Save\n            </button>\n        </div>\n    </div>\n\n    <!-- LED Bar (centered) -->\n    <div style=\"text-align: center; margin-bottom: 15px;\">\n        <div style=\"display: inline-flex; gap: 6px;\">\n            <div class=\"led-box clickable\" ng-class=\"{'active-red': msg.online && msg.leds.red}\" ng-click=\"msg.online && send({payload: 'RED'})\">\n            </div>\n            <div class=\"led-box clickable\" ng-class=\"{'active-green': msg.online && msg.leds.green}\"\n                ng-click=\"msg.online && send({payload: 'GREEN'})\"></div>\n            <div class=\"led-box clickable\" ng-class=\"{'active-blue': msg.online && msg.leds.blue}\" ng-click=\"msg.online && send({payload: 'BLUE'})\">\n            </div>\n            <div class=\"led-box clickable\" ng-class=\"{'active-yellow': msg.online && msg.leds.yellow}\"\n                ng-click=\"msg.online && send({payload: 'YELLOW'})\"></div>\n            <div class=\"led-box clickable\" ng-class=\"{'active-white': msg.online && msg.leds.white}\"\n                ng-click=\"msg.online && send({payload: 'WHITE'})\"></div>\n        </div>\n    </div>\n\n    <!-- Status & Connection -->\n    <div style=\"display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;\">\n        <div><strong>Status:</strong> \n            <span ng-if=\"msg.online\" ng-style=\"{'color': msg.statusColor}\">{{msg.status}}</span>\n            <span ng-if=\"!msg.online\" style=\"color: #999;\">OFFLINE</span>\n        </div>\n        <div><strong>Connection:</strong>\n            <span ng-style=\"{'color': msg.online ? 'green' : 'red'}\">{{msg.online ? 'Online' : 'Offline'}}</span>\n        </div>\n    </div>\n\n    <!-- Mode, IP & Version -->\n    <div style=\"display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px;\">\n        <div><strong>Mode:</strong> \n            <span ng-if=\"msg.online\">{{msg.mode}}</span>\n            <span ng-if=\"!msg.online\" style=\"color: #999;\">--</span>\n        </div>\n        <div><strong>IP:</strong> \n            <span ng-if=\"msg.online\">{{msg.ip}}</span>\n            <span ng-if=\"!msg.online\" style=\"color: #999;\">--</span>\n        </div>\n        <div><strong>Ver:</strong> \n            <span ng-if=\"msg.online\" style=\"font-size: 11px; color: #666;\">{{msg.version}}</span>\n            <span ng-if=\"!msg.online\" style=\"color: #999;\">--</span>\n        </div>\n    </div>\n\n    <!-- Next Meeting Info -->\n    <div ng-if=\"msg.online\" style=\"background: #e3f2fd; padding: 6px; border-radius: 4px; margin-bottom: 10px; font-size: 12px;\">\n        <div ng-if=\"msg.nextMeeting && msg.nextMeeting.isCurrent\">\n            <strong>Current:</strong> {{msg.nextMeeting.title}}<br>\n            <span style=\"font-size: 11px; color: #666;\">Ends at {{msg.nextMeeting.end}}</span>\n        </div>\n        <div ng-if=\"msg.nextMeeting && !msg.nextMeeting.isCurrent\">\n            <strong>Next:</strong> {{msg.nextMeeting.title}}<br>\n            <span style=\"font-size: 11px; color: #666;\">{{msg.nextMeeting.date}} at {{msg.nextMeeting.start}}</span>\n        </div>\n        <div ng-if=\"!msg.nextMeeting\" style=\"color: #999; font-style: italic;\">\n            No upcoming meetings\n        </div>\n    </div>\n    <div ng-if=\"!msg.online\" style=\"background: #f0f0f0; padding: 6px; border-radius: 4px; margin-bottom: 10px; font-size: 12px; color: #999; font-style: italic; text-align: center;\">\n        Meeting info unavailable\n    </div>\n\n    <!-- Activity Log -->\n    <div\n        style=\"background: #f5f5f5; padding: 8px; border-radius: 4px; margin-bottom: 15px; font-size: 12px; font-family: monospace; height: 250px; overflow-y: auto;\">\n        <div ng-if=\"msg.online\" ng-repeat=\"log in msg.logs track by $index\">{{log}}</div>\n        <div ng-if=\"!msg.online\" style=\"color: #999; font-style: italic;\">Device offline - no recent activity</div>\n    </div>\n\n    <!-- Control Buttons with Active Highlighting -->\n    <div style=\"display: flex; gap: 5px; flex-wrap: wrap;\">\n        <button ng-click=\"msg.online && send({payload: 'AUTO'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'AUTO' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">AUTO</button>\n        <button ng-click=\"msg.online && send({payload: 'DISCO'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'DISCO' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">DISCO</button>\n        <button ng-click=\"msg.online && send({payload: 'TIMETRAVEL'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'TIMETRAVEL' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">TIME</button>\n        <button ng-click=\"msg.online && send({payload: 'DOUBLE_DISCO'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'DOUBLE DISCO' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">DOUBLE</button>\n        <button ng-click=\"msg.online && send({payload: 'COLOR_CIRCLE'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'COLOR CIRCLE' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">CIRCLE</button>\n    </div>\n</div>\n\n<style>\n    .led-box {\n        width: 20px;\n        height: 20px;\n        border: 2px solid #000;\n        border-radius: 50%;\n        background: transparent;\n        transition: all 0.2s ease;\n    }\n\n    .led-box.clickable {\n        cursor: pointer;\n    }\n\n    .led-box.clickable:hover {\n        transform: scale(1.2);\n        transition: transform 0.1s ease;\n    }\n\n    .led-box.active-red {\n        background: #ff0000;\n        border: 3px solid #000;\n    }\n\n    .led-box.active-green {\n        background: #00ff00;\n        border: 3px solid #000;\n    }\n\n    .led-box.active-blue {\n        background: #0000ff;\n        border: 3px solid #000;\n    }\n\n    .led-box.active-yellow {\n        background: #ffff00;\n        border: 3px solid #000;\n    }\n\n    .led-box.active-white {\n        background: #ffffff;\n        border: 3px solid #000;\n    }\n    \n    button:disabled {\n        opacity: 0.5;\n        cursor: not-allowed !important;\n    }\n</style>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 820,
+        "y": 200,
+        "wires": [
+            [
+                "7cfea6b051af048f"
+            ]
+        ]
+    },
+    {
+        "id": "2028c9d1890d469f",
+        "type": "ui_template",
+        "z": "9ff7a1626b9efc3c",
+        "group": "7cf9a2ed83fb55d6",
+        "name": "",
+        "order": 0,
+        "width": "0",
+        "height": "0",
+        "format": "<div ng-style=\"!msg.online && {'opacity': '0.5', 'pointer-events': 'none'}\" style=\"padding: 10px; font-family: Arial, sans-serif;\">\n    <!-- Offline Banner -->\n    <div ng-if=\"!msg.online\" style=\"background: #ffcccc; border: 2px solid #ff0000; padding: 10px; margin-bottom: 15px; text-align: center; font-weight: bold; color: #cc0000; border-radius: 4px;\">\n        ⚠️ DEVICE OFFLINE ⚠️\n    </div>\n    \n    <!-- Friendly Name as Page Title -->\n    <h2 style=\"margin: 0 0 10px 0; font-size: 22px; color: #333;\">\n        <span ng-if=\"msg.friendlyName\">{{msg.friendlyName}}</span>\n        <span ng-if=\"!msg.friendlyName\" style=\"color: #999; font-style: italic;\">Unnamed Device</span>\n    </h2>\n    \n    <!-- Edit Name Box -->\n    <div style=\"background: #e8f5e9; padding: 8px; border-radius: 4px; margin-bottom: 10px;\">\n        <div style=\"display: flex; justify-content: flex-end;\">\n            <button ng-click=\"showNameEdit = !showNameEdit\" \n                    style=\"padding: 4px 8px; font-size: 11px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer;\">\n                {{showNameEdit ? 'Cancel' : 'Edit Name'}}\n            </button>\n        </div>\n        <div ng-if=\"showNameEdit\" style=\"margin-top: 8px; display: flex; gap: 5px;\">\n            <input type=\"text\" ng-model=\"newName\" placeholder=\"Enter friendly name\" \n                   style=\"flex: 1; padding: 5px; border: 1px solid #ccc; border-radius: 3px;\">\n            <button ng-click=\"send({payload: 'SETNAME:' + newName}); showNameEdit = false; newName = '';\"\n                    style=\"padding: 5px 10px; background: #2196F3; color: white; border: none; border-radius: 3px; cursor: pointer;\">\n                Save\n            </button>\n        </div>\n    </div>\n\n    <!-- LED Bar (centered) -->\n    <div style=\"text-align: center; margin-bottom: 15px;\">\n        <div style=\"display: inline-flex; gap: 6px;\">\n            <div class=\"led-box clickable\" ng-class=\"{'active-red': msg.online && msg.leds.red}\" ng-click=\"msg.online && send({payload: 'RED'})\">\n            </div>\n            <div class=\"led-box clickable\" ng-class=\"{'active-green': msg.online && msg.leds.green}\"\n                ng-click=\"msg.online && send({payload: 'GREEN'})\"></div>\n            <div class=\"led-box clickable\" ng-class=\"{'active-blue': msg.online && msg.leds.blue}\" ng-click=\"msg.online && send({payload: 'BLUE'})\">\n            </div>\n            <div class=\"led-box clickable\" ng-class=\"{'active-yellow': msg.online && msg.leds.yellow}\"\n                ng-click=\"msg.online && send({payload: 'YELLOW'})\"></div>\n            <div class=\"led-box clickable\" ng-class=\"{'active-white': msg.online && msg.leds.white}\"\n                ng-click=\"msg.online && send({payload: 'WHITE'})\"></div>\n        </div>\n    </div>\n\n    <!-- Status & Connection -->\n    <div style=\"display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;\">\n        <div><strong>Status:</strong> \n            <span ng-if=\"msg.online\" ng-style=\"{'color': msg.statusColor}\">{{msg.status}}</span>\n            <span ng-if=\"!msg.online\" style=\"color: #999;\">OFFLINE</span>\n        </div>\n        <div><strong>Connection:</strong>\n            <span ng-style=\"{'color': msg.online ? 'green' : 'red'}\">{{msg.online ? 'Online' : 'Offline'}}</span>\n        </div>\n    </div>\n\n    <!-- Mode, IP & Version -->\n    <div style=\"display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px;\">\n        <div><strong>Mode:</strong> \n            <span ng-if=\"msg.online\">{{msg.mode}}</span>\n            <span ng-if=\"!msg.online\" style=\"color: #999;\">--</span>\n        </div>\n        <div><strong>IP:</strong> \n            <span ng-if=\"msg.online\">{{msg.ip}}</span>\n            <span ng-if=\"!msg.online\" style=\"color: #999;\">--</span>\n        </div>\n        <div><strong>Ver:</strong> \n            <span ng-if=\"msg.online\" style=\"font-size: 11px; color: #666;\">{{msg.version}}</span>\n            <span ng-if=\"!msg.online\" style=\"color: #999;\">--</span>\n        </div>\n    </div>\n\n    <!-- Next Meeting Info -->\n    <div ng-if=\"msg.online\" style=\"background: #e3f2fd; padding: 6px; border-radius: 4px; margin-bottom: 10px; font-size: 12px;\">\n        <div ng-if=\"msg.nextMeeting && msg.nextMeeting.isCurrent\">\n            <strong>Current:</strong> {{msg.nextMeeting.title}}<br>\n            <span style=\"font-size: 11px; color: #666;\">Ends at {{msg.nextMeeting.end}}</span>\n        </div>\n        <div ng-if=\"msg.nextMeeting && !msg.nextMeeting.isCurrent\">\n            <strong>Next:</strong> {{msg.nextMeeting.title}}<br>\n            <span style=\"font-size: 11px; color: #666;\">{{msg.nextMeeting.date}} at {{msg.nextMeeting.start}}</span>\n        </div>\n        <div ng-if=\"!msg.nextMeeting\" style=\"color: #999; font-style: italic;\">\n            No upcoming meetings\n        </div>\n    </div>\n    <div ng-if=\"!msg.online\" style=\"background: #f0f0f0; padding: 6px; border-radius: 4px; margin-bottom: 10px; font-size: 12px; color: #999; font-style: italic; text-align: center;\">\n        Meeting info unavailable\n    </div>\n\n    <!-- Activity Log -->\n    <div\n        style=\"background: #f5f5f5; padding: 8px; border-radius: 4px; margin-bottom: 15px; font-size: 12px; font-family: monospace; height: 250px; overflow-y: auto;\">\n        <div ng-if=\"msg.online\" ng-repeat=\"log in msg.logs track by $index\">{{log}}</div>\n        <div ng-if=\"!msg.online\" style=\"color: #999; font-style: italic;\">Device offline - no recent activity</div>\n    </div>\n\n    <!-- Control Buttons with Active Highlighting -->\n    <div style=\"display: flex; gap: 5px; flex-wrap: wrap;\">\n        <button ng-click=\"msg.online && send({payload: 'AUTO'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'AUTO' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">AUTO</button>\n        <button ng-click=\"msg.online && send({payload: 'DISCO'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'DISCO' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">DISCO</button>\n        <button ng-click=\"msg.online && send({payload: 'TIMETRAVEL'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'TIMETRAVEL' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">TIME</button>\n        <button ng-click=\"msg.online && send({payload: 'DOUBLE_DISCO'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'DOUBLE DISCO' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">DOUBLE</button>\n        <button ng-click=\"msg.online && send({payload: 'COLOR_CIRCLE'})\"\n                ng-disabled=\"!msg.online\"\n                ng-style=\"msg.mode === 'COLOR CIRCLE' ? {'background': '#005580', 'font-weight': 'bold'} : {'background': '#0088cc'}\"\n                style=\"flex: 1; padding: 8px; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;\">CIRCLE</button>\n    </div>\n</div>\n\n<style>\n    .led-box {\n        width: 20px;\n        height: 20px;\n        border: 2px solid #000;\n        border-radius: 50%;\n        background: transparent;\n        transition: all 0.2s ease;\n    }\n\n    .led-box.clickable {\n        cursor: pointer;\n    }\n\n    .led-box.clickable:hover {\n        transform: scale(1.2);\n        transition: transform 0.1s ease;\n    }\n\n    .led-box.active-red {\n        background: #ff0000;\n        border: 3px solid #000;\n    }\n\n    .led-box.active-green {\n        background: #00ff00;\n        border: 3px solid #000;\n    }\n\n    .led-box.active-blue {\n        background: #0000ff;\n        border: 3px solid #000;\n    }\n\n    .led-box.active-yellow {\n        background: #ffff00;\n        border: 3px solid #000;\n    }\n\n    .led-box.active-white {\n        background: #ffffff;\n        border: 3px solid #000;\n    }\n    \n    button:disabled {\n        opacity: 0.5;\n        cursor: not-allowed !important;\n    }\n</style>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 820,
+        "y": 260,
+        "wires": [
+            [
+                "dedcf31288ad3558"
+            ]
+        ]
+    },
+    {
+        "id": "2514f53472cd69a0",
+        "type": "switch",
+        "z": "9ff7a1626b9efc3c",
+        "name": "",
+        "property": "payload",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "regex",
+                "v": "^(RED|GREEN|BLUE|YELLOW|WHITE|OFF|AUTO|DISCO|TIMETRAVEL|DOUBLE_DISCO|COLOR_CIRCLE)$",
+                "vt": "str",
+                "case": false
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 1010,
+        "y": 400,
+        "wires": [
+            [
+                "29d16af201358fab"
+            ]
+        ]
+    },
+    {
+        "id": "89e06a69560c3ef6",
+        "type": "inject",
+        "z": "9ff7a1626b9efc3c",
+        "name": "Request Status on Startup",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "PUBLISH_STATUS",
+        "payloadType": "str",
+        "x": 940,
+        "y": 460,
+        "wires": [
+            [
+                "29d16af201358fab"
+            ]
+        ]
+    },
+    {
+        "id": "2b276eeac0b9c679",
+        "type": "inject",
+        "z": "9ff7a1626b9efc3c",
+        "name": "Check Online Status",
+        "props": [
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "10",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "check_online",
+        "x": 220,
+        "y": 140,
+        "wires": [
+            [
+                "c227ee3f9f21d32f",
+                "26a424905bfda4c0",
+                "a5853f93d6bdcf13",
+                "d68b75c1b29ce739",
+                "64110738b4be786f",
+                "77eec01bebc5e03e"
+            ]
+        ]
+    },
+    {
+        "id": "8117f776ae8fa306",
+        "type": "mqtt-broker",
+        "name": "HiveMQ",
+        "broker": "df8c4c485c4b4f979aa0145ff79fdaca.s1.eu.hivemq.cloud",
+        "port": "8883",
+        "tls": "2900c0aa765c07bc",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": true,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "8b4c82f6994c7feb",
+        "type": "ui_group",
+        "name": "",
+        "tab": "1ae4d0f54eb28bb5",
+        "order": 2,
+        "disp": true,
+        "width": "8",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "c4b41e6e1cfb4443",
+        "type": "ui_group",
+        "name": "",
+        "tab": "5b80dc67d4d35b57",
+        "order": 6,
+        "disp": true,
+        "width": "8",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "315c6cd0b260a8dc",
+        "type": "ui_group",
+        "name": "",
+        "tab": "1b805da3eabde042",
+        "order": 1,
+        "disp": true,
+        "width": "8",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "04cd4c427da2bd28",
+        "type": "ui_group",
+        "name": "",
+        "tab": "82b1ff207907dda1",
+        "order": 3,
+        "disp": true,
+        "width": "8",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "797bb0db313e3371",
+        "type": "ui_group",
+        "name": "",
+        "tab": "acb779cb3a642952",
+        "order": 4,
+        "disp": true,
+        "width": "8",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "7cf9a2ed83fb55d6",
+        "type": "ui_group",
+        "name": "",
+        "tab": "193a0ef087e9a49e",
+        "order": 5,
+        "disp": true,
+        "width": "8",
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "2900c0aa765c07bc",
+        "type": "tls-config",
+        "name": "",
+        "cert": "",
+        "key": "",
+        "ca": "",
+        "certname": "",
+        "keyname": "",
+        "caname": "",
+        "servername": "",
+        "verifyservercert": false,
+        "alpnprotocol": ""
+    },
+    {
+        "id": "1ae4d0f54eb28bb5",
+        "type": "ui_tab",
+        "name": "Master Control",
+        "icon": "group_work",
+        "order": 1,
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "5b80dc67d4d35b57",
+        "type": "ui_tab",
+        "name": "Device 5",
+        "icon": "flare",
+        "order": 6,
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "1b805da3eabde042",
+        "type": "ui_tab",
+        "name": "Device 1",
+        "icon": "flare",
+        "order": 2,
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "82b1ff207907dda1",
+        "type": "ui_tab",
+        "name": "Device 2",
+        "icon": "flare",
+        "order": 3,
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "acb779cb3a642952",
+        "type": "ui_tab",
+        "name": "Device 3",
+        "icon": "flare",
+        "order": 4,
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "193a0ef087e9a49e",
+        "type": "ui_tab",
+        "name": "Device 4",
+        "icon": "flare",
+        "order": 5,
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "bc84cb7f4fcb555a",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-dashboard": "3.6.6"
+        }
+    }
+]
