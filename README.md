@@ -143,10 +143,35 @@ Create a `secrets.h` file in the same directory as the `.ino` file:
 - ESP32 Arduino Core **2.0.17** (Note: 3.x versions have LED PWM compatibility issues)
 
 
+## 🔁 Node-RED Dashboard & Orchestration
 
-### Node-RED (Oracle Cloud)
-- Standard Node-RED palette
-- `node-red-dashboard` for UI
+This repository includes an export of the Node-RED flows used to monitor,
+aggregate, and control all Busy Light devices in real time.
+
+The Node-RED instance acts as the system's **central coordinator**, providing:
+
+- Real-time MQTT status aggregation across all devices
+- Online/offline detection using heartbeats and LWT
+- Web-based dashboard for monitoring and manual control
+- Per-device status pages (LED state, mode, IP, firmware version)
+- Master control panel for sending color and mode commands
+
+### Importing the Node-RED Flow
+
+1. Open your Node-RED editor
+2. Menu (☰) → Import
+3. Upload `Node-RED/flow.json`
+4. Update the MQTT broker settings as needed
+5. Deploy
+
+No credentials are included in the exported flow.
+
+### Security Notes
+
+- The exported Node-RED flow **does not include any credentials**
+- MQTT usernames, passwords, and TLS material must be configured locally
+- Broker hostnames may appear in the flow but are not secrets
+- Google Apps Script URLs and calendar feeds are **not** embedded in Node-RED
 
 ### Raspberry Pi Zero (e-ink display)
 ```bash
