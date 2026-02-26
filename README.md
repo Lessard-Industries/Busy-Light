@@ -87,6 +87,8 @@ Each of the five devices has a unique pin configuration due to iterative hardwar
 │   └── Code.gs
 ├── Node-RED/                  # Node-RED flow exports
 │   └── flow.json
+├── Raspberry_Pi/              # Optional e-ink monitoring station
+│   └── busy_light_eink.py     # MQTT-driven Waveshare e-ink display
 └── README.md
 ```
 
@@ -174,6 +176,20 @@ No credentials are included in the exported flow.
 - Google Apps Script URLs and calendar feeds are **not** embedded in Node-RED
 
 ### Raspberry Pi Zero (e-ink display)
+
+An optional Raspberry Pi Zero W subscribes to MQTT and displays the
+real-time status of all Busy Light devices on a 2.13" Waveshare e-ink display.
+
+Features:
+- Live online/offline status for all devices
+- Busy / Free / Remote indicators
+- Firmware version display
+- MQTT connection, temperature, and uptime stats
+- MQTT credentials should be configured directly in the script or via environment variables.
+
+Configuration (MQTT credentials) is required and not included in the repo.
+
+
 ```bash
 sudo apt install python3-pil python3-numpy python3-requests python3-spidev
 pip3 install paho-mqtt
