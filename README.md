@@ -142,8 +142,7 @@ Create a `secrets.h` file in the same directory as the `.ino` file:
 - `ArduinoOTA`
 - ESP32 Arduino Core **2.0.17** (Note: 3.x versions have LED PWM compatibility issues)
 
-### Google Apps Script
-- No external dependencies — uses built-in `UrlFetchApp` services
+
 
 ### Node-RED (Oracle Cloud)
 - Standard Node-RED palette
@@ -155,7 +154,84 @@ sudo apt install python3-pil python3-numpy python3-requests python3-spidev
 pip3 install paho-mqtt
 git clone https://github.com/waveshare/e-Paper.git
 ```
+## 🧩 Google Apps Script (Calendar API)
 
+The ESP32 devices do not talk directly to Microsoft 365. Instead, they poll a lightweight **Google Apps Script Web App** that:
+
+1. Fetches your Microsoft 365 calendar **ICS feed**
+2. Parses events (including recurring meetings)
+3. Applies business rules (business hours, weekends, “REMOTE” days, “OFF” blocks)
+4. Returns a compact JSON payload the ESP32 can consume
+
+This script lives in: `Google_Script/Code.gs`
+
+### ✅ Features
+
+- **ICS Fetch + Parse**  
+  Pulls the raw `.ics` feed from Microsoft 365 and extracts events, including:
+  - Regular events
+  - All-day events
+  - Recurring events via `RRULE`
+  - Modified/moved recurring instances using `RECURRENCE-ID` exceptions
+
+- **Aggressive Caching (3 minutes)**  
+  Uses Apps Script `CacheService` to reduce calendar fetches and keep responses fast.
+
+- **Weekend + Business Hours Logic**  
+  Automatically returns `off_hours` on weekends, and outside the configured window:
+  **8:30 AM – 4:30 PM** (configurable constants in the script).
+
+- **Remote Work Day Detection**  
+  Flags a day as `remote` when it finds an event containing `REMOTE`
+  scheduled before 9:00 AM on the current day.
+
+- **Busy / Free Determination + 1-Minute Grace Window**  
+  Marks you as `busy` during active meetings, including a 1-minute pre-start grace period.
+
+- **Special "OFF" Appointment Handling**  
+  If an active meeting contains `OFF` in the title, the API returns `off_hours`
+  (useful for PTO blocks, appointments, etc.).
+
+- **Next Meeting Preview**  
+  Returns the next upcoming meeting title/time (within business hours),
+  allowing the ESP32/Node-RED dashboard to show what’s coming.
+
+- **Helpful Debug Payload**  
+  Includes a `debug_info` section with:
+  - total parsed events
+  - cache age
+  - script + cache version
+
+### 📦 JSON Response Format
+
+Example (shape only):
+
+```json
+{
+  "status": "busy | free | remote | off_hours | error",
+  "timestamp": "2026-02-26T01:23:45.678Z",
+  "business_hours": {
+    "start": 8.5,
+    "end": 16.5,
+    "current_hour": 13.25
+  },
+  "remote_day": false,
+  "current_meeting": {
+    "title": "Standup",
+    "end_time": "2026-02-26 10:30:00"
+  },
+  "next_meeting": {
+    "time": "2026-02-26 11:00:00",
+    "title": "Planning"
+  },
+  "debug_info": {
+    "total_events": 12,
+    "cache_age_seconds": 42,
+    "script_version": "8.0.5",
+    "cache_version": "10"
+  }
+}
+```
 ---
 
 ## 🚀 Getting Started
