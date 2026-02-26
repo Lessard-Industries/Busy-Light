@@ -27,7 +27,7 @@ from PIL import Image, ImageDraw, ImageFont
 # HiveMQ Cloud Configuration
 MQTT_BROKER = "your-hivemq-cluster.hivemq.cloud"
 MQTT_PORT = 8883
-QTT_USERNAME = "your-mqtt-username"
+MQTT_USERNAME = "your-mqtt-username"
 MQTT_PASSWORD = "your-mqtt-password"
 MQTT_TOPIC = "busylight/#"
 

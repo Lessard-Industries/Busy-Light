@@ -81,41 +81,46 @@ Each of the five devices has a unique pin configuration due to iterative hardwar
 ## 📁 Repository Structure
 
 ```
-├── Busy_Light_x_x_x.ino      # ESP32 Arduino firmware
-├── secrets.h                  # WiFi, MQTT credentials (not committed)
+├── src/
+│   └── main.cpp               # ESP32 firmware (PlatformIO)
+├── include/
+│   └── secrets.h              # WiFi, MQTT credentials (not committed)
 ├── Google_Script/             # Google Apps Script for calendar parsing
 │   └── Code.gs
 ├── Node-RED/                  # Node-RED flow exports
 │   └── flow.json
 ├── Raspberry_Pi/              # Optional e-ink monitoring station
-│   └── busy_light_eink.py     # MQTT-driven Waveshare e-ink display
+│   └── busy_light_status.py   # MQTT-driven Waveshare e-ink display
+├── images/                    # Dashboard screenshots
+│   └── Node-RED-dashboard.png
+├── platformio.ini             # PlatformIO build configuration
 └── README.md
 ```
 
-> **Note:** `secrets.h` is excluded from version control. See [Configuration](#-configuration) below.
+> **Note:** `include/secrets.h` is excluded from version control. See [Configuration](#-configuration) below.
 
 ---
 
 ## 🔧 Configuration
 
-Create a `secrets.h` file in the same directory as the `.ino` file:
+Create `include/secrets.h` with the following definitions:
 
 ```cpp
-// secrets.h
-#define WIFI_SSID_1     "YourHomeSSID"
-#define WIFI_PASSWORD_1 "YourHomePassword"
-#define WIFI_SSID_2     "YourOfficeSSID"
-#define WIFI_PASSWORD_2 "YourOfficePassword"
+// include/secrets.h
+#define SECRET_MQTT_SERVER   "your-hivemq-cluster.hivemq.cloud"
+#define SECRET_MQTT_PORT     8883
+#define SECRET_MQTT_USER     "your-mqtt-username"
+#define SECRET_MQTT_PASSWORD "your-mqtt-password"
 
-#define MQTT_SERVER   "your-hivemq-host.hivemq.cloud"
-#define MQTT_PORT     8883
-#define MQTT_USER     "your-mqtt-username"
-#define MQTT_PASSWORD "your-mqtt-password"
+#define SECRET_WIFI_SSID      "YourPrimarySSID"
+#define SECRET_WIFI_PASSWORD  "YourPrimaryPassword"
+#define SECRET_WIFI_SSID2     "YourBackupSSID"
+#define SECRET_WIFI_PASSWORD2 "YourBackupPassword"
 
-#define CALENDAR_API_URL "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec"
-
-#define DEVICE_ID 1   // Change for each device (1–5)
+#define SECRET_CALENDAR_API_URL "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec"
 ```
+
+> **Device ID:** `DEVICE_ID` is set directly near the top of `src/main.cpp` — change it there for each device (1–5).
 
 ---
 
@@ -142,6 +147,7 @@ Create a `secrets.h` file in the same directory as the `.ino` file:
 - `ArduinoJson`
 - `WiFiClientSecure`
 - `ArduinoOTA`
+- `Adafruit NeoPixel`
 - ESP32 Arduino Core **2.0.17** (Note: 3.x versions have LED PWM compatibility issues)
 
 
@@ -312,14 +318,21 @@ Example (shape only):
 ## 📡 MQTT Topic Structure
 
 ```
-busylight/device{ID}/status        → free | busy | remote | unknown
-busylight/device{ID}/mode          → NORMAL | OFF_HOURS | REMOTE | DISCO | etc.
-busylight/device{ID}/active_led    → RED | GREEN | BLUE | YELLOW | WHITE | NONE
-busylight/device{ID}/ip            → Device IP address (retained)
-busylight/device{ID}/version       → Firmware version (retained)
-busylight/device{ID}/name          → Friendly name (retained, set externally)
-busylight/device{ID}/meeting/title → Current meeting title
-busylight/device{ID}/lwt           → Last Will Testament (offline detection)
+busylight/device{ID}/status           → free | busy | remote | unknown
+busylight/device{ID}/mode             → NORMAL | OFF_HOURS | REMOTE | DISCO | etc.
+busylight/device{ID}/active_led       → RED | GREEN | BLUE | YELLOW | WHITE | NONE
+busylight/device{ID}/ip               → Device IP address (retained)
+busylight/device{ID}/version          → Firmware version (retained)
+busylight/device{ID}/friendly_name    → Friendly name (retained, set externally)
+busylight/device{ID}/meeting/title    → Current or next meeting title
+busylight/device{ID}/meeting/current  → true | false (whether meeting is active)
+busylight/device{ID}/meeting/start    → Meeting start time
+busylight/device{ID}/meeting/end      → Meeting end time
+busylight/device{ID}/meeting/date     → Meeting date label
+busylight/device{ID}/log              → Debug log messages
+busylight/device{ID}/lwt              → Last Will Testament (offline detection)
+busylight/device{ID}/command          → Inbound: color/mode commands for one device
+busylight/all/command                 → Inbound: broadcast commands to all devices
 ```
 
 ---
