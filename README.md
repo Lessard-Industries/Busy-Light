@@ -145,7 +145,7 @@ Create a `secrets.h` file in the same directory as the `.ino` file:
 
 ## 🔁 Node-RED Dashboard & Orchestration
 
-![Node-RED Busy Light Dashboard](images/node-red-dashboard.png)
+![Node-RED Busy Light Dashboard](images/Node-RED-dashboard.png)
 
 This repository includes an export of the Node-RED flows used to monitor,
 aggregate, and control all Busy Light devices in real time.
