@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Busy Light E-Ink Status Display
 Subscribes to HiveMQ Cloud MQTT broker
@@ -128,7 +129,7 @@ def on_message(client, userdata, msg):
 # ============================================================================
 
 def render_display(epd):
-    """Render current state to e-ink display - three column layout with border"""
+    """Render current state to e-ink display"""
     try:
         # Create blank image
         image = Image.new('1', (DISPLAY_HEIGHT, DISPLAY_WIDTH), 255)
@@ -138,20 +139,16 @@ def render_display(epd):
         # Draw border around entire display
         draw.rectangle([(0, 0), (DISPLAY_HEIGHT-1, DISPLAY_WIDTH-1)], outline=0, width=2)
 
-        # Check for timeouts
-        state.check_timeouts()
-
-        # Define three columns
-        col1_x = 6    # All 5 devices
-        col2_x = 100  # Firmware versions
-        col3_x = 175  # System stats
+        # Define columns
+        col1_x = 6    # Friendly name
+        col2_x = 100  # Firmware version
+        col3_x = 142  # Status
 
         y = 6
 
-        # Header - spans all columns
+        # Header
         now = datetime.now().strftime("%m/%d %I:%M%p")
-        online_count = sum(1 for d in state.devices.values() if d['online'])
-        draw.text((col1_x, y), f"BusyLight {online_count}/5", font=font, fill=0)
+        draw.text((col1_x, y), f"BusyLight  {now}", font=font, fill=0)
         y += 14
 
         # Separator line
@@ -159,97 +156,24 @@ def render_display(epd):
         y += 4
 
         # Column headers
-        draw.text((col1_x, y), "Device:", font=font, fill=0)
+        draw.text((col1_x, y), "Name:", font=font, fill=0)
         draw.text((col2_x, y), "Ver:", font=font, fill=0)
+        draw.text((col3_x, y), "Status:", font=font, fill=0)
         y += 13
 
-        # COLUMN 1: All 5 devices with friendly names
-        col1_y = y
+        # Device rows
         for i in range(1, 6):
             device_id = f'device{i}'
             device = state.devices[device_id]
 
-            # Use friendly name if set, otherwise device number
-            name = device.get('friendly_name', '')
-            if name:
-                # Truncate to 8 chars for display
-                name = name[:8]
-            else:
-                name = f"Dev{i}"
+            name = (device.get('friendly_name', '') or f"Dev{i}")[:14]
+            version = device['version'][:6]
+            status = device['status']
 
-            if device['online']:
-                status_map = {
-                    'free': 'F',
-                    'busy': 'B',
-                    'remote': 'R',
-                    'off_hours': 'O'
-                }
-                status = status_map.get(device['status'][:10].lower(), '-')
-                line = f"{name}: {status}"
-            else:
-                line = f"{name}: --"
-
-            draw.text((col1_x, col1_y), line, font=font, fill=0)
-            col1_y += 13
-
-        # COLUMN 2: Firmware versions
-        col2_y = y
-
-        for i in range(1, 6):
-            device_id = f'device{i}'
-            device = state.devices[device_id]
-
-            if device['online']:
-                version = device['version']
-                # Shorten version (e.g., "7.7.1" -> "7.7.1")
-                if len(version) > 5:
-                    version = version[:5]
-                draw.text((col2_x, col2_y), version, font=font, fill=0)
-            else:
-                draw.text((col2_x, col2_y), "--", font=font, fill=0)
-
-            col2_y += 13
-
-        # COLUMN 3: System stats (starts after column headers)
-        col3_y = y
-
-        # MQTT connection
-        draw.text((col3_x, col3_y), "MQTT:", font=font, fill=0)
-        col3_y += 13
-        mqtt_status = "OK" if state.mqtt_connected else "FAIL"
-        draw.text((col3_x, col3_y), mqtt_status, font=font, fill=0)
-        col3_y += 16
-
-        # CPU Temperature
-        try:
-            with open('/sys/class/thermal/thermal_zone0/temp', 'r') as f:
-                temp_raw = int(f.read().strip())
-                temp_c = temp_raw / 1000.0
-                temp_text = f"{temp_c:.0f}C"
-        except:
-            temp_text = "--"
-
-        draw.text((col3_x, col3_y), "Temp:", font=font, fill=0)
-        col3_y += 13
-        draw.text((col3_x, col3_y), temp_text, font=font, fill=0)
-        col3_y += 16
-
-        # Pi Uptime
-        try:
-            with open('/proc/uptime', 'r') as f:
-                uptime_seconds = float(f.read().split()[0])
-                hours = int(uptime_seconds // 3600)
-                if hours < 24:
-                    uptime_text = f"{hours}h"
-                else:
-                    days = hours // 24
-                    uptime_text = f"{days}d"
-        except:
-            uptime_text = "--"
-
-        draw.text((col3_x, col3_y), "Up:", font=font, fill=0)
-        col3_y += 13
-        draw.text((col3_x, col3_y), uptime_text, font=font, fill=0)
+            draw.text((col1_x, y), name, font=font, fill=0)
+            draw.text((col2_x, y), version, font=font, fill=0)
+            draw.text((col3_x, y), status, font=font, fill=0)
+            y += 13
 
         # Display the image
         epd.display(epd.getbuffer(image))
