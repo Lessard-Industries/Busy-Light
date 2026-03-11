@@ -21,7 +21,7 @@
 // ============================================================================
 
 // Device ID - Change this for each device (1-5)
-#define DEVICE_ID 3
+#define DEVICE_ID 5
 
 // MQTT Broker (HiveMQ Cloud)
 const char* MQTT_SERVER = SECRET_MQTT_SERVER;
