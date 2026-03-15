@@ -34,7 +34,7 @@ MQTT_TOPIC = "busylight/#"
 # Display settings
 DISPLAY_WIDTH = 122
 DISPLAY_HEIGHT = 250
-UPDATE_INTERVAL = 60  # seconds
+UPDATE_INTERVAL = 15  # seconds
 
 # ============================================================================
 # DEVICE STATE TRACKING
@@ -175,12 +175,20 @@ def render_display(epd):
             draw.text((col3_x, y), status, font=font, fill=0)
             y += 13
 
-        # Display the image
-        epd.display(epd.getbuffer(image))
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] Display updated")
+        # Display the image (full refresh first time, partial after)
+        buf = epd.getbuffer(image)
+        if render_display.first:
+            epd.displayPartBaseImage(buf)
+            render_display.first = False
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Display updated (full)")
+        else:
+            epd.displayPartial(buf)
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Display updated (partial)")
 
     except Exception as e:
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Display error: {e}")
+
+render_display.first = True
 
 # ============================================================================
 # MAIN PROGRAM

@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ssh -o ConnectTimeout=5 pi@PiZero \"echo ''connected''\")",
+      "Bash(ssh -o ConnectTimeout=5 pi@PiZero.local \"echo ''connected''\")",
+      "Bash(ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new pi@pizero \"echo ''connected''\")",
+      "Bash(powershell.exe -Command \"Resolve-DnsName pizero | Select-Object -ExpandProperty IPAddress\")",
+      "Bash(powershell.exe -Command \"ping pizero -n 1\")",
+      "Read(//c/Users/edles/.ssh/**)",
+      "Bash(ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new pi@192.168.68.150 \"echo ''connected''\")",
+      "Bash(ls /c/Users/edles/.ssh/id_*.pub)",
+      "Bash(ssh-keygen -R 192.168.68.150)",
+      "Bash(ssh -o ConnectTimeout=5 pi@192.168.68.150 \"echo ''connected''\")",
+      "Bash(ssh pi@pizero \"cat ~/busy_light_status.py\")",
+      "Bash(ssh pi@pizero \"cat /home/pi/e-Paper/RaspberryPi_JetsonNano/python/lib/waveshare_epd/epd2in13_V4.py\")",
+      "Bash(ssh pi@pizero \"grep -n ''def '' /home/pi/e-Paper/RaspberryPi_JetsonNano/python/lib/waveshare_epd/epd2in13_V4.py\")",
+      "Bash(scp \"c:/Users/edles/OneDrive/Documents/PlatformIO/Projects/BusyLight/Raspberry_Pi/busy_light_status.py\" pi@pizero:~/busy_light_status.py)",
+      "Bash(ssh pi@pizero \"pgrep -a -f busy_light_status\")",
+      "Bash(ssh pi@pizero \"sudo kill 643 && sleep 1 && nohup python3 ~/busy_light_status.py > ~/busy_light.log 2>&1 & echo ''started''\")",
+      "Bash(ssh pi@pizero \"sleep 3 && cat ~/busy_light.log\")",
+      "Bash(ssh pi@pizero \"cat ~/busy_light.log && pgrep -a -f busy_light_status\")",
+      "Bash(ssh pi@pizero \"sudo pkill -f busy_light_status; sleep 2 && pgrep -a -f busy_light_status || echo ''all stopped''\")",
+      "Bash(ssh pi@pizero \"sudo killall python3; sleep 2; pgrep -a -f busy_light || echo ''all stopped''\")",
+      "Bash(ssh pi@pizero \"systemctl list-units --type=service | grep -i busy\")",
+      "Bash(ssh pi@pizero \"sudo systemctl restart busylight-display && sleep 5 && sudo systemctl status busylight-display\")",
+      "Bash(ssh pi@pizero \"sudo journalctl -u busylight-display --since ''2 min ago'' --no-pager\")",
+      "Bash(ssh pi@pizero \"sudo journalctl -u busylight-display --since ''1 min ago'' --no-pager\")",
+      "Bash(ssh pi@pizero \"cat /etc/systemd/system/busylight-display.service\")",
+      "Bash(ssh pi@pizero \"pip3 list 2>/dev/null | grep -iE ''paho|pillow|gpiozero|lgpio|spidev|RPi''\")",
+      "Bash(ssh pi@pizero \"dpkg -l | grep -iE ''spidev|lgpio|gpiozero|paho|pillow|python3-pil'' | awk ''{print $2, $3}''\")",
+      "Bash(ssh pi@pizero \"pinout 2>/dev/null | head -5 || echo ''pinout not available''\")",
+      "Bash(ssh pi@pizero \"grep -E ''PIN|pin'' /home/pi/e-Paper/RaspberryPi_JetsonNano/python/lib/waveshare_epd/epdconfig.py | head -20\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\edles\\.ssh"
+    ]
+  }
+}
