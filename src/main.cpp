@@ -21,7 +21,7 @@
 // ============================================================================
 
 // Device ID - Change this for each device (1-5)
-#define DEVICE_ID 5
+#define DEVICE_ID 1
 
 // MQTT Broker (HiveMQ Cloud)
 const char* MQTT_SERVER = SECRET_MQTT_SERVER;
@@ -87,7 +87,19 @@ const int GAP_DURATION_MS = 100;
 // ============================================================================
 
 const char* FIRMWARE_VERSION = "8.0.6";
-const String DEVICE_HOSTNAME = "BusyLight-Office-" + String(DEVICE_ID);
+
+// Stealth hostnames - look like normal office devices to bypass network profiling
+#if DEVICE_ID == 1
+  const String DEVICE_HOSTNAME = "Sues-iPhone";
+#elif DEVICE_ID == 2
+  const String DEVICE_HOSTNAME = "HP-Laptop-3B2F";
+#elif DEVICE_ID == 3
+  const String DEVICE_HOSTNAME = "Dell-Monitor-WiFi";
+#elif DEVICE_ID == 4
+  const String DEVICE_HOSTNAME = "Epson-ET2850";
+#elif DEVICE_ID == 5
+  const String DEVICE_HOSTNAME = "Galaxy-Tab-A8";
+#endif
 
 // MQTT Topics
 const String MQTT_BASE_TOPIC = "busylight/device" + String(DEVICE_ID);
@@ -575,24 +587,30 @@ void syncTime() {
 
   logMessage("Syncing time...");
   blinkBlue();
-  
-  configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
+
+  // Try multiple NTP servers - work networks may block some
+  configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC,
+             "pool.ntp.org", "time.google.com", "time.cloudflare.com");
 
   struct tm timeinfo;
   int retries = 0;
-  while (!getLocalTime(&timeinfo) && retries < 10) {
+  // getLocalTime timeout param: 10 seconds per attempt, up to 6 attempts
+  while (!getLocalTime(&timeinfo, 10000) && retries < 6) {
+    logMessage("NTP attempt " + String(retries + 1) + " failed, retrying...");
     blinkBlue();
+    delay(2000);
     retries++;
   }
 
-  if (getLocalTime(&timeinfo)) {
+  if (getLocalTime(&timeinfo, 10000)) {
     char time_str[64];
     strftime(time_str, sizeof(time_str), "%m/%d %l:%M:%S %p", &timeinfo);
     logMessage("Time synced: " + String(time_str));
     timeSynced = true;
     flashWhite();
   } else {
-    logMessage("Time sync failed");
+    logMessage("Time sync FAILED after " + String(retries) + " attempts");
+    logMessage("IP: " + WiFi.localIP().toString() + " DNS: " + WiFi.dnsIP().toString());
     blinkRedError();
   }
 }
@@ -1226,11 +1244,23 @@ void setupWiFi() {
         }
 
         if (WiFi.status() == WL_CONNECTED) {
-            logMessage("Connected to WiFi: " + String(wifiNetworks[n][0]));
-            logMessage("IP address: " + WiFi.localIP().toString());
-            reconnectAttempts = 0;
-            apTriggered = false;
-            return;
+            // Wait for DHCP to assign a real IP (not 0.0.0.0)
+            int dhcpWait = 0;
+            while (WiFi.localIP() == IPAddress(0, 0, 0, 0) && dhcpWait < 20) {
+                delay(250);
+                dhcpWait++;
+            }
+            if (WiFi.localIP() != IPAddress(0, 0, 0, 0)) {
+                logMessage("Connected to WiFi: " + String(wifiNetworks[n][0]));
+                logMessage("IP address: " + WiFi.localIP().toString());
+                reconnectAttempts = 0;
+                apTriggered = false;
+                return;
+            }
+            logMessage("DHCP failed on " + String(wifiNetworks[n][0]) + " - no IP assigned");
+            WiFi.disconnect();
+            delay(100);
+            continue;
         }
 
         WiFi.disconnect();
@@ -1359,17 +1389,20 @@ void setup() {
   setupWiFi();
 
   if (WiFi.status() == WL_CONNECTED) {
-    // Setup MQTT
+    // Let the network stack fully stabilize before TLS/NTP calls
+    logMessage("Waiting for network to stabilize...");
+    delay(3000);
+
+    // Sync time FIRST - MQTT TLS needs valid time for cert checks
+    syncTime();
+    delay(2000);
+    syncTime();
+
+    // Setup MQTT after time is synced
     mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
     mqttClient.setCallback(mqttCallback);
     connectMQTT();
     publishBlackoutSummary();
-    
-    // Sync time
-    delay(2000);
-    syncTime();
-    delay(2000);
-    syncTime();
 
     // Catch up based on current time
     handleBootCatchup();
