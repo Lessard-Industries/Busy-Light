@@ -4,3 +4,7 @@
 .vscode/launch.json
 .vscode/ipch
 include/secrets.h
+
+# clasp (Google Apps Script CLI) — local-only handles, not portable
+.clasp.json
+.clasprc.json

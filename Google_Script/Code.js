@@ -10,9 +10,11 @@
 // ============================================================================
 
 // M365 ICS URL (Outlook > Settings > Calendar > ICS export)
-// Run setupICSRrl the first time, after entering unique link.
+// Stored in Script Properties at runtime; this constant is only used by
+// setupICSUrl() to seed the property the first time. Keep as placeholder
+// in the repo — paste the real URL here only momentarily, run setupICSUrl(),
+// then revert before committing.
 const ICS_URL = 'YOUR_ICS_URL_HERE';
-
 
 const TIMEZONE = 'America/New_York';
 const BUSINESS_HOURS_START = 8.5;   // 8:30 AM
@@ -21,8 +23,8 @@ const CACHE_DURATION_SECONDS = 180; // 3 minutes
 
 // Bump CACHE_VERSION when changing constants above to force cache refresh
 // (This is separate from SCRIPT_VERSION)
-const CACHE_VERSION = "1";
-const SCRIPT_VERSION = "enter version here";
+const CACHE_VERSION = "13";
+const SCRIPT_VERSION = "8.1.0";
 
 // ============================================================================
 // REQUEST HANDLERS
@@ -38,12 +40,19 @@ function doPost(e) {
 
 function handleRequest() {
   try {
+    // Guard: all hour/day math below relies on the project's TZ matching TIMEZONE.
+    // If someone flips Project Settings, fail loudly instead of silently drifting an hour.
+    if (Session.getScriptTimeZone() !== TIMEZONE) {
+      throw new Error('Script timezone mismatch: project=' + Session.getScriptTimeZone() + ' expected=' + TIMEZONE);
+    }
+
     var now = new Date();
     var currentHour = now.getHours() + now.getMinutes() / 60;
     var dayOfWeek = now.getDay();
     
     var status = "free";
     var currentMeeting = { title: null, end_time: null };
+    var currentMeetingEndDate = null;  // raw Date kept alongside currentMeeting.end_time
     var nextMeetingTime = null;
     var nextMeetingTitle = null;
     var isRemoteDay = false;
@@ -96,10 +105,12 @@ function handleRequest() {
               status = "off_hours";
               currentMeeting.title = evt.summary;
               currentMeeting.end_time = formatDateTime(evt.end);
+              currentMeetingEndDate = evt.end;
             } else {
               status = "busy";
               currentMeeting.title = evt.summary;
               currentMeeting.end_time = formatDateTime(evt.end);
+              currentMeetingEndDate = evt.end;
             }
             break;
           }
@@ -118,9 +129,8 @@ function handleRequest() {
           }
           
           // Skip if before current meeting ends
-          if (status === "busy" && currentMeeting.end_time) {
-            var currentMeetingEndTime = new Date(currentMeeting.end_time + ' ' + TIMEZONE);
-            if (evt.start < currentMeetingEndTime) {
+          if (status === "busy" && currentMeetingEndDate) {
+            if (evt.start < currentMeetingEndDate) {
               continue;
             }
           }
@@ -424,20 +434,20 @@ function parseICSDateString(dateStr) {
   var year = parseInt(dateStr.substring(0, 4));
   var month = parseInt(dateStr.substring(4, 6)) - 1;
   var day = parseInt(dateStr.substring(6, 8));
-  
+
   // Check if there's a time component (T followed by 6 digits)
   if (dateStr.length >= 15 && dateStr.charAt(8) === 'T') {
     var hour = parseInt(dateStr.substring(9, 11));
     var minute = parseInt(dateStr.substring(11, 13));
     var second = parseInt(dateStr.substring(13, 15));
-    
+
     if (dateStr.indexOf('Z') !== -1) {
       return new Date(Date.UTC(year, month, day, hour, minute, second));
     }
-    return new Date(year, month, day, hour, minute, second);
+    return wallTimeInTZToDate(year, month, day, hour, minute, second, TIMEZONE);
   }
-  
-  return new Date(year, month, day);
+
+  return wallTimeInTZToDate(year, month, day, 0, 0, 0, TIMEZONE);
 }
 
 function parseICS(icsData) {
@@ -452,23 +462,37 @@ function parseICS(icsData) {
   var maxDate = new Date(today);
   maxDate.setDate(maxDate.getDate() + 2);
   
-  // First pass: collect all RECURRENCE-ID exceptions
+  // First pass: collect RECURRENCE-ID exceptions, keyed by UID|date.
+  // Per RFC 5545, a RECURRENCE-ID applies to a SPECIFIC series (UID), not to
+  // every event on that date. Keying by date alone caused unrelated single-instance
+  // meetings to be suppressed when a recurring meeting on the same day was modified.
+  var pendingUid = null;
+  var pendingRecurrenceDate = null;
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i].trim();
-    
+
     // Handle line folding
     while (i + 1 < lines.length && (lines[i + 1].charAt(0) === ' ' || lines[i + 1].charAt(0) === '\t')) {
       line += lines[i + 1].substring(1);
       i++;
     }
-    
-    if (line.indexOf('RECURRENCE-ID') === 0) {
-      var exDate = parseICSDate(line);
-      if (exDate) {
-        // Key by date string to mark this occurrence as overridden
-        var key = exDate.toISOString().substring(0, 10);
-        exceptions[key] = true;
+
+    if (line === 'BEGIN:VEVENT') {
+      pendingUid = null;
+      pendingRecurrenceDate = null;
+    } else if (line === 'END:VEVENT') {
+      if (pendingUid && pendingRecurrenceDate) {
+        // Key by local-calendar date (TIMEZONE), not UTC — an event at 9pm ET
+        // is already "tomorrow" in UTC and would otherwise miss its override.
+        var dateStr = Utilities.formatDate(pendingRecurrenceDate, TIMEZONE, 'yyyy-MM-dd');
+        exceptions[pendingUid + '|' + dateStr] = true;
       }
+      pendingUid = null;
+      pendingRecurrenceDate = null;
+    } else if (line.indexOf('UID:') === 0) {
+      pendingUid = line.substring(4).trim();
+    } else if (line.indexOf('RECURRENCE-ID') === 0) {
+      pendingRecurrenceDate = parseICSDate(line);
     }
   }
   
@@ -484,6 +508,7 @@ function parseICS(icsData) {
     
     if (line === 'BEGIN:VEVENT') {
       currentEvent = {
+        uid: '',
         summary: '',
         start: null,
         end: null,
@@ -496,17 +521,17 @@ function parseICS(icsData) {
       };
     } else if (line === 'END:VEVENT') {
       if (currentEvent && currentEvent.start && currentEvent.end) {
-        
+
         // Skip declined meetings (marked as FREE)
         if (currentEvent.busyStatus === 'FREE') {
           currentEvent = null;
           continue;
         }
-        
+
         if (currentEvent.isAllDay) {
           currentEvent.end.setDate(currentEvent.end.getDate() - 1);
         }
-        
+
         // Check if this is within our date range
         if (currentEvent.start >= today && currentEvent.start < maxDate) {
           // If this event has a RECURRENCE-ID, it's an exception (replacement)
@@ -514,9 +539,11 @@ function parseICS(icsData) {
           if (currentEvent.isException) {
             events.push(currentEvent);
           } else {
-            // For regular/recurring events, check if this occurrence was overridden
-            var dateKey = currentEvent.start.toISOString().substring(0, 10);
-            if (!exceptions[dateKey]) {
+            // For regular/recurring events, check if THIS series' occurrence
+            // was overridden. Keyed by uid|date so a modified occurrence of one
+            // series does not suppress unrelated meetings on the same date.
+            var dateKey = Utilities.formatDate(currentEvent.start, TIMEZONE, 'yyyy-MM-dd');
+            if (!exceptions[currentEvent.uid + '|' + dateKey]) {
               events.push(currentEvent);
             }
           }
@@ -525,8 +552,8 @@ function parseICS(icsData) {
           var expanded = expandRRULE(currentEvent, today, maxDate);
           for (var e = 0; e < expanded.length; e++) {
             var occ = expanded[e];
-            var occKey = occ.start.toISOString().substring(0, 10);
-            if (!exceptions[occKey]) {
+            var occKey = Utilities.formatDate(occ.start, TIMEZONE, 'yyyy-MM-dd');
+            if (!exceptions[currentEvent.uid + '|' + occKey]) {
               events.push(occ);
             }
           }
@@ -534,7 +561,9 @@ function parseICS(icsData) {
       }
       currentEvent = null;
     } else if (currentEvent) {
-      if (line.indexOf('SUMMARY:') === 0) {
+      if (line.indexOf('UID:') === 0) {
+        currentEvent.uid = line.substring(4).trim();
+      } else if (line.indexOf('SUMMARY:') === 0) {
         currentEvent.summary = line.substring(8).trim();
       } else if (line.indexOf('DTSTART') === 0) {
         currentEvent.start = parseICSDate(line);
@@ -566,24 +595,51 @@ function parseICS(icsData) {
 function parseICSDate(line) {
   var match = line.match(/[:;](\d{8}T\d{6}Z?)/) || line.match(/[:;](\d{8})/);
   if (!match) return null;
-  
+
   var dateStr = match[1];
   var year = parseInt(dateStr.substring(0, 4));
   var month = parseInt(dateStr.substring(4, 6)) - 1;
   var day = parseInt(dateStr.substring(6, 8));
-  
+
   if (dateStr.length === 8) {
-    return new Date(year, month, day);
+    // VALUE=DATE — all-day, local midnight in TIMEZONE
+    return wallTimeInTZToDate(year, month, day, 0, 0, 0, TIMEZONE);
   }
-  
+
   var hour = parseInt(dateStr.substring(9, 11));
   var minute = parseInt(dateStr.substring(11, 13));
   var second = parseInt(dateStr.substring(13, 15));
-  
+
   if (dateStr.indexOf('Z') !== -1) {
+    // Explicit UTC
     return new Date(Date.UTC(year, month, day, hour, minute, second));
   }
-  return new Date(year, month, day, hour, minute, second);
+
+  // Floating or TZID-prefixed: treat as wall time in TIMEZONE.
+  // M365 feeds typically use TZID="Eastern Standard Time" for personal calendars;
+  // we assume the calendar is in TIMEZONE rather than trying to map Windows TZ names.
+  return wallTimeInTZToDate(year, month, day, hour, minute, second, TIMEZONE);
+}
+
+// Convert a wall-clock time (year/month/day/hour/min/sec as displayed in tz) to a UTC Date.
+// Works regardless of the Apps Script project's own timezone, and handles DST correctly
+// including the spring-forward/fall-back edges (two-pass convergence).
+function wallTimeInTZToDate(year, month, day, hour, minute, second, tz) {
+  // Initial guess: interpret the wall time as if it were UTC.
+  var guess = new Date(Date.UTC(year, month, day, hour, minute, second));
+  // Iterate: measure what that instant looks like in tz, and correct by the delta.
+  // Two passes are enough because the offset error is bounded and fixed-point converges.
+  for (var i = 0; i < 2; i++) {
+    var formatted = Utilities.formatDate(guess, tz, 'yyyy-MM-dd HH:mm:ss');
+    var p = formatted.split(/[\s:-]/);
+    var seenAsUtc = Date.UTC(
+      parseInt(p[0]), parseInt(p[1]) - 1, parseInt(p[2]),
+      parseInt(p[3]), parseInt(p[4]), parseInt(p[5])
+    );
+    var targetAsUtc = Date.UTC(year, month, day, hour, minute, second);
+    guess = new Date(guess.getTime() + (targetAsUtc - seenAsUtc));
+  }
+  return guess;
 }
 
 // ============================================================================
@@ -591,6 +647,9 @@ function parseICSDate(line) {
 // ============================================================================
 
 function setupICSUrl() {
+  if (ICS_URL === 'YOUR_ICS_URL_HERE') {
+    throw new Error('Refusing to store placeholder. Paste real ICS URL into the ICS_URL constant first, then run this once, then revert the constant before committing.');
+  }
   PropertiesService.getScriptProperties().setProperty('ICS_URL', ICS_URL);
   Logger.log('ICS URL stored. Deploy as Web App with "Anyone" permissions.');
 }

@@ -1,7 +1,6 @@
 // ============================================================================
-// Busy Light Project - Version 8.0.4
+// Busy Light Project - Version 8.1.0
 // ESP32 with M365 Calendar Integration via HiveMQ Cloud MQTT
-// Conversion to platform.io
 // Lessard Industries, 2026
 // ============================================================================
 
@@ -21,7 +20,7 @@
 // ============================================================================
 
 // Device ID - Change this for each device (1-5)
-#define DEVICE_ID 1
+#define DEVICE_ID 5
 
 // MQTT Broker (HiveMQ Cloud)
 const char* MQTT_SERVER = SECRET_MQTT_SERVER;
@@ -33,9 +32,10 @@ const char* MQTT_PASSWORD = SECRET_MQTT_PASSWORD;
 const char* CALENDAR_API_URL = SECRET_CALENDAR_API_URL;
 
 // Time Configuration
-const char* NTP_SERVER = "pool.ntp.org";
-const long GMT_OFFSET_SEC = -5 * 3600;  // EST
-const int DAYLIGHT_OFFSET_SEC = 0;      // Manually adjust when needed
+// POSIX TZ string handles EST/EDT transitions automatically — no manual DST flip.
+// "EST5EDT,M3.2.0,M11.1.0/2" = UTC-5 standard, UTC-4 DST, spring fwd 2nd Sun of Mar,
+// fall back 1st Sun of Nov at 02:00 local. Matches US Eastern rules since 2007.
+const char* TZ_STRING = "EST5EDT,M3.2.0,M11.1.0/2";
 
 // Business Hours (device-side enforcement for precise on/off)
 const float BUSINESS_START_HOUR = 8.5;   // 8:30 AM
@@ -86,19 +86,19 @@ const int GAP_DURATION_MS = 100;
 // DERIVED CONSTANTS (auto-generated from config)
 // ============================================================================
 
-const char* FIRMWARE_VERSION = "8.0.6";
+const char* FIRMWARE_VERSION = "8.1.0";
 
 // Stealth hostnames - look like normal office devices to bypass network profiling
 #if DEVICE_ID == 1
-  const String DEVICE_HOSTNAME = "Sues-iPhone";
+  const String DEVICE_HOSTNAME = "Ed-Google-Nexus";
 #elif DEVICE_ID == 2
-  const String DEVICE_HOSTNAME = "HP-Laptop-3B2F";
+  const String DEVICE_HOSTNAME = "Ed-Nexus-6P";
 #elif DEVICE_ID == 3
-  const String DEVICE_HOSTNAME = "Dell-Monitor-WiFi";
+  const String DEVICE_HOSTNAME = "Ed-Pixel-2XL";
 #elif DEVICE_ID == 4
-  const String DEVICE_HOSTNAME = "Epson-ET2850";
+  const String DEVICE_HOSTNAME = "Ed-Pixel-7a0";
 #elif DEVICE_ID == 5
-  const String DEVICE_HOSTNAME = "Galaxy-Tab-A8";
+  const String DEVICE_HOSTNAME = "Ed-Nexus7";
 #endif
 
 // MQTT Topics
@@ -588,9 +588,10 @@ void syncTime() {
   logMessage("Syncing time...");
   blinkBlue();
 
-  // Try multiple NTP servers - work networks may block some
-  configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC,
-             "pool.ntp.org", "time.google.com", "time.cloudflare.com");
+  // Try multiple NTP servers - work networks may block some.
+  // configTzTime applies the POSIX TZ string so localtime_r / mktime do DST automatically.
+  configTzTime(TZ_STRING,
+               "pool.ntp.org", "time.google.com", "time.cloudflare.com");
 
   struct tm timeinfo;
   int retries = 0;
@@ -730,7 +731,8 @@ void updateLightFromCalendar(bool verboseLog) {
     struct tm timeinfo;
     memset(&timeinfo, 0, sizeof(struct tm));
     if (strptime(timeStringForAlarm, "%Y-%m-%d %H:%M:%S", &timeinfo) != nullptr) {
-      time_t t = mktime(&timeinfo) - DAYLIGHT_OFFSET_SEC;
+      timeinfo.tm_isdst = -1;  // let mktime resolve DST from TZ rules
+      time_t t = mktime(&timeinfo);
       nextMeetingStartTime = t;
 
       if (verboseLog || nextMeetingStartTime != lastLoggedAlarm) {

@@ -29,7 +29,9 @@
       "Bash(ssh pi@pizero \"pip3 list 2>/dev/null | grep -iE ''paho|pillow|gpiozero|lgpio|spidev|RPi''\")",
       "Bash(ssh pi@pizero \"dpkg -l | grep -iE ''spidev|lgpio|gpiozero|paho|pillow|python3-pil'' | awk ''{print $2, $3}''\")",
       "Bash(ssh pi@pizero \"pinout 2>/dev/null | head -5 || echo ''pinout not available''\")",
-      "Bash(ssh pi@pizero \"grep -E ''PIN|pin'' /home/pi/e-Paper/RaspberryPi_JetsonNano/python/lib/waveshare_epd/epdconfig.py | head -20\")"
+      "Bash(ssh pi@pizero \"grep -E ''PIN|pin'' /home/pi/e-Paper/RaspberryPi_JetsonNano/python/lib/waveshare_epd/epdconfig.py | head -20\")",
+      "Bash(clasp push *)",
+      "Bash(clasp pull *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\edles\\.ssh"
