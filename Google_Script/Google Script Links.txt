@@ -1,0 +1,9 @@
+Device 1: https://script.google.com/macros/s/AKfycbwNLa6dEIO5SAgqfAJwEHSkncfRzoQ71E3IkJVzSDjdpLXgCf6RPiJKoOtF6m_ZmXGy/exec
+
+Device 2: https://script.google.com/macros/s/AKfycbyhUjZ5usHllrudrb3rmrqrUSLvH5ZWA3SGt-amOBBHQm8ztHexkZBWgHhan2dRdYbz/exec
+
+Device 3: https://script.google.com/macros/s/AKfycbyFgK1numZTBi4E1uQciTlAbVdL-mtTgTUkeVxX8SDrJQ6uYt2n-yrTI1CuoH5gXZs5/exec
+
+Device 4: https://script.google.com/macros/s/AKfycbzwMjIFg10VuVwbkNdeZ0qOlhS_y5gIj7UrD907q6ecHfDftaofG-VmJkOBPVhI86YL4A/exec
+
+Device 5: https://script.google.com/macros/s/AKfycbwtGCkYDgg8pDPZhxVq0LwfWuXSsJVZGk2R38kcIOxHXrYUf4w63rC-S7uwd1y3v3_wmA/exec

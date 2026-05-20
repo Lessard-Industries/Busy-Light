@@ -10,6 +10,7 @@
 #include <HTTPClient.h>
 #include <time.h>
 #include <WiFiManager.h>
+#include <esp_wifi.h>
 #include <ArduinoJson.h>
 #include <PubSubClient.h>
 #include <Preferences.h>
@@ -20,7 +21,7 @@
 // ============================================================================
 
 // Device ID - Change this for each device (1-5)
-#define DEVICE_ID 3
+#define DEVICE_ID 4
 
 // MQTT Broker (HiveMQ Cloud)
 const char* MQTT_SERVER = SECRET_MQTT_SERVER;
@@ -28,8 +29,22 @@ const int MQTT_PORT = SECRET_MQTT_PORT;
 const char* MQTT_USER = SECRET_MQTT_USER;
 const char* MQTT_PASSWORD = SECRET_MQTT_PASSWORD;
 
-// Calendar API (Google Apps Script endpoint)
-const char* CALENDAR_API_URL = SECRET_CALENDAR_API_URL;
+// Calendar API (Google Apps Script endpoint) - per-device, one deploy per user.
+// To onboard a new user: duplicate the Apps Script, set their ICS URL via
+// setupICSUrl(), deploy as Web App, paste the /exec URL here for their DEVICE_ID.
+// To update an existing user's calendar: edit ICS_URL in their script, run
+// setupICSUrl() again — no firmware re-flash needed (URL stays the same).
+#if DEVICE_ID == 1
+  const char* CALENDAR_API_URL = "https://script.google.com/macros/s/AKfycbwNLa6dEIO5SAgqfAJwEHSkncfRzoQ71E3IkJVzSDjdpLXgCf6RPiJKoOtF6m_ZmXGy/exec";
+#elif DEVICE_ID == 2
+  const char* CALENDAR_API_URL = "https://script.google.com/macros/s/AKfycbyhUjZ5usHllrudrb3rmrqrUSLvH5ZWA3SGt-amOBBHQm8ztHexkZBWgHhan2dRdYbz/exec";
+#elif DEVICE_ID == 3
+  const char* CALENDAR_API_URL = "https://script.google.com/macros/s/AKfycbyFgK1numZTBi4E1uQciTlAbVdL-mtTgTUkeVxX8SDrJQ6uYt2n-yrTI1CuoH5gXZs5/exec";
+#elif DEVICE_ID == 4
+  const char* CALENDAR_API_URL = "https://script.google.com/macros/s/AKfycbzwMjIFg10VuVwbkNdeZ0qOlhS_y5gIj7UrD907q6ecHfDftaofG-VmJkOBPVhI86YL4A/exec";
+#elif DEVICE_ID == 5
+  const char* CALENDAR_API_URL = "https://script.google.com/macros/s/AKfycbwtGCkYDgg8pDPZhxVq0LwfWuXSsJVZGk2R38kcIOxHXrYUf4w63rC-S7uwd1y3v3_wmA/exec";
+#endif
 
 // Time Configuration
 // POSIX TZ string handles EST/EDT transitions automatically — no manual DST flip.
@@ -96,7 +111,7 @@ const char* FIRMWARE_VERSION = "8.1.0";
 #elif DEVICE_ID == 3
   const String DEVICE_HOSTNAME = "Ed-Pixel-2XL";
 #elif DEVICE_ID == 4
-  const String DEVICE_HOSTNAME = "Ed-Pixel-7a0";
+  const String DEVICE_HOSTNAME = "Ed-Pixel-7a";
 #elif DEVICE_ID == 5
   const String DEVICE_HOSTNAME = "Ed-Nexus7";
 #endif
@@ -1223,6 +1238,24 @@ void setupWiFi() {
 
     WiFi.setHostname(DEVICE_HOSTNAME.c_str());
     WiFi.mode(WIFI_STA);
+
+    // Spoof MAC for devices the AP refuses to admit under their real MAC.
+    // Devices 2 and 3 connect fine, so leave them on factory MAC.
+#if DEVICE_ID == 1
+    uint8_t customMac[] = {0xCC, 0x50, 0xE3, 0x11, 0x10, 0x7C};
+#elif DEVICE_ID == 4
+    uint8_t customMac[] = {0xCC, 0x50, 0xE3, 0x11, 0x4B, 0x90};
+#elif DEVICE_ID == 5
+    uint8_t customMac[] = {0xCC, 0x50, 0xE3, 0x11, 0x24, 0xF4};
+#endif
+#if DEVICE_ID == 1 || DEVICE_ID == 4 || DEVICE_ID == 5
+    esp_err_t macErr = esp_wifi_set_mac(WIFI_IF_STA, customMac);
+    if (macErr == ESP_OK) {
+        logMessage("MAC spoofed: " + WiFi.macAddress());
+    } else {
+        logMessage("MAC spoof failed: " + String(esp_err_to_name(macErr)));
+    }
+#endif
 
     // Try predefined WiFi networks before falling back to WiFiManager
     const char* wifiNetworks[][2] = {
