@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Busy Light &mdash; User Guide</title>
+<style>
+  @page { size: Letter; margin: 0.7in; }
+
+  body {
+    font-family: "Calibri", "Segoe UI", Arial, sans-serif;
+    color: #222;
+    line-height: 1.5;
+    max-width: 7.5in;
+    margin: 0 auto;
+    padding: 0.3in 0;
+    background: #ffffff;
+  }
+
+  /* Lessard accent colors pulled from the logo */
+  :root {
+    --teal: #1f8a8c;
+    --orange: #d36b1f;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    border-bottom: 4px solid #1f8a8c;
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+  }
+  header img {
+    width: 96px;
+    height: auto;
+    flex-shrink: 0;
+  }
+  header .titleblock h1 {
+    margin: 0;
+    font-size: 30pt;
+    color: #1f8a8c;
+    letter-spacing: 0.5px;
+  }
+  header .titleblock .sub {
+    margin-top: 4px;
+    font-size: 12pt;
+    color: #555;
+    font-style: italic;
+  }
+  header .titleblock .brand {
+    margin-top: 6px;
+    font-size: 10pt;
+    color: #d36b1f;
+    font-weight: bold;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  h2 {
+    color: #1f8a8c;
+    border-bottom: 2px solid #1f8a8c;
+    padding-bottom: 4px;
+    margin-top: 28px;
+    font-size: 16pt;
+  }
+
+  h3 {
+    color: #d36b1f;
+    margin-top: 18px;
+    margin-bottom: 6px;
+    font-size: 12.5pt;
+  }
+
+  p { margin: 8px 0; }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 10px 0 16px 0;
+    font-size: 10.5pt;
+  }
+  th {
+    background: #1f8a8c;
+    color: white;
+    text-align: left;
+    padding: 8px 10px;
+    font-weight: bold;
+  }
+  td {
+    border-bottom: 1px solid #ddd;
+    padding: 8px 10px;
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: #f7f7f7; }
+
+  .swatch {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid #888;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  .swatch.red    { background: #e23b3b; }
+  .swatch.green  { background: #36c759; }
+  .swatch.blue   { background: #2f8bff; }
+  .swatch.yellow { background: #ffcc33; }
+  .swatch.white  { background: #ffffff; }
+  .swatch.off    { background: #222; }
+
+  .callout {
+    background: #fff6ec;
+    border-left: 4px solid #d36b1f;
+    padding: 10px 14px;
+    margin: 12px 0;
+    font-size: 10.5pt;
+  }
+  .callout .tip-label {
+    font-weight: bold;
+    color: #d36b1f;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 9pt;
+    margin-bottom: 2px;
+    display: block;
+  }
+
+  .lead {
+    font-size: 12pt;
+    margin-bottom: 14px;
+  }
+
+  ul { padding-left: 22px; }
+  li { margin: 4px 0; }
+
+  footer {
+    margin-top: 40px;
+    padding-top: 14px;
+    border-top: 2px solid #1f8a8c;
+    font-size: 9.5pt;
+    color: #666;
+    text-align: center;
+  }
+  footer .brand-foot {
+    color: #d36b1f;
+    font-weight: bold;
+    letter-spacing: 1px;
+  }
+
+  .page-break { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<header>
+  <img src="lessard_logo.png" alt="Lessard Industries">
+  <div class="titleblock">
+    <h1>So You Have a Busy Light&hellip;</h1>
+    <div class="sub">A friendly user guide to your new desktop meeting indicator</div>
+    <div class="brand">Lessard Industries</div>
+  </div>
+</header>
+
+<p class="lead">
+Welcome! The little device sitting on your desk is a <strong>Busy Light</strong> &mdash;
+a tiny, always-on assistant that lets the people around you (and you yourself) know,
+at a glance, whether you're in a meeting, available, working remotely, or off the
+clock. It talks to your Microsoft 365 calendar over the internet and lights up the
+appropriate color all on its own. No app, no logging in, no fuss.
+</p>
+
+<p>
+This guide walks you through what each of the five colored buttons does, what
+the lights mean during normal operation, and what those blinks and flashes
+mean when it first powers up. Keep it nearby for the first few days &mdash; after
+that, you probably won't need it.
+</p>
+
+<h2>Meet Your Busy Light</h2>
+
+<p>
+Your Busy Light has <strong>five colored buttons</strong>, each paired with an LED of the
+same color. From left to right (or top to bottom, depending on how it's mounted),
+they are:
+</p>
+
+<p style="margin-left: 18px;">
+<span class="swatch red"></span><strong>Red</strong>  &nbsp;&nbsp;
+<span class="swatch green"></span><strong>Green</strong>  &nbsp;&nbsp;
+<span class="swatch blue"></span><strong>Blue</strong>  &nbsp;&nbsp;
+<span class="swatch yellow"></span><strong>Yellow</strong>  &nbsp;&nbsp;
+<span class="swatch white"></span><strong>White</strong>
+</p>
+
+<p>
+Plug it in to any USB power source. That's the entire installation. It will
+connect to Wi-Fi, sync its clock, find your calendar, and start showing your
+status. The next time you have a meeting on your work calendar, the red light
+will come on by itself.
+</p>
+
+<h2>What the Lights Mean (Normal Use)</h2>
+
+<p>During the workday (8:30&nbsp;AM&ndash;4:30&nbsp;PM, or your business hours if different), one of these will be true:</p>
+
+<table>
+  <tr>
+    <th style="width: 30%;">Light</th>
+    <th>What it means</th>
+  </tr>
+  <tr>
+    <td><span class="swatch red"></span><strong>Solid Red</strong></td>
+    <td>You are <strong>in a meeting</strong> right now. Do not disturb.</td>
+  </tr>
+  <tr>
+    <td><span class="swatch red"></span><strong>Pulsing Red</strong> (fading in and out)</td>
+    <td>A meeting is starting in <strong>less than one minute</strong>. Wrap up that conversation!</td>
+  </tr>
+  <tr>
+    <td><span class="swatch green"></span><strong>Solid Green</strong></td>
+    <td>You are <strong>free</strong> and available. Come on in.</td>
+  </tr>
+  <tr>
+    <td><span class="swatch blue"></span><strong>Solid Blue</strong></td>
+    <td>It's a <strong>remote work day</strong>. You aren't at your desk today.</td>
+  </tr>
+  <tr>
+    <td><span class="swatch off"></span><strong>All lights off</strong></td>
+    <td>Outside of business hours. The Busy Light goes dark on its own at the end of the workday and stays dark until the next morning (8:30&nbsp;AM&ndash;4:30&nbsp;PM by default, or whatever business hours were set for your device).</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <span class="tip-label">How it knows</span>
+  Every three minutes the Busy Light quietly checks your calendar in the cloud.
+  When it sees you have a meeting, it turns red. When the meeting ends, it turns green again.
+  Five minutes before a meeting it double-checks early, and one minute before, it pulses red as a heads-up.
+</div>
+
+<h2>What the Buttons Do</h2>
+
+<p>
+Each button has <strong>two behaviors</strong> &mdash; a <em>short press</em> (tap and release)
+and a <em>long press</em> (hold for about 1.5 seconds). Short presses are
+your manual overrides, long presses unlock the fun stuff.
+</p>
+
+<h3>Short Press &mdash; Manual Override</h3>
+
+<p>
+Tap any colored button to <strong>manually force</strong> that color on. The Busy Light
+will stop following your calendar and just stay that color until you tell it
+otherwise. Tap the same button again to turn it off entirely.
+</p>
+
+<table>
+  <tr>
+    <th style="width: 22%;">Button</th>
+    <th>Short Press Effect</th>
+  </tr>
+  <tr>
+    <td><span class="swatch red"></span>Red</td>
+    <td>Force <strong>Red</strong> on (manual "busy" &mdash; useful when you're on a phone call that isn't on your calendar)</td>
+  </tr>
+  <tr>
+    <td><span class="swatch green"></span>Green</td>
+    <td>Force <strong>Green</strong> on (manual "available")</td>
+  </tr>
+  <tr>
+    <td><span class="swatch blue"></span>Blue</td>
+    <td>Force <strong>Blue</strong> on (manual "remote")</td>
+  </tr>
+  <tr>
+    <td><span class="swatch yellow"></span>Yellow</td>
+    <td>Force <strong>Yellow</strong> on (whatever you'd like it to mean &mdash; "back in 5", "headphones on", etc.)</td>
+  </tr>
+  <tr>
+    <td><span class="swatch white"></span>White</td>
+    <td>Force <strong>White</strong> on (good for a quick reading light at your desk)</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <span class="tip-label">Getting back to automatic</span>
+  When you manually pick a color, the Busy Light stops following your calendar.
+  To put it back on autopilot, <strong>press and hold the White button</strong> for about 1.5 seconds.
+  You'll see all lights briefly go off, then a quick white flash &mdash; that's your "got it"
+  acknowledgement &mdash; and then the Busy Light goes back to matching your calendar.
+</div>
+
+<h3>Long Press &mdash; Special Light Modes</h3>
+
+<p>
+Hold any button (other than White) for about 1.5 seconds to unlock a light show.
+Great for parties, end-of-day demos, or just for fun. Tap any button briefly to
+exit and return to normal operation.
+</p>
+
+<table>
+  <tr>
+    <th style="width: 22%;">Hold This Button</th>
+    <th>What Happens</th>
+  </tr>
+  <tr>
+    <td><span class="swatch red"></span>Red (hold)</td>
+    <td><strong>Double Disco</strong> &mdash; two random LEDs fade in and out together</td>
+  </tr>
+  <tr>
+    <td><span class="swatch green"></span>Green (hold)</td>
+    <td><strong>Time Travel</strong> &mdash; all five LEDs fade independently at different speeds</td>
+  </tr>
+  <tr>
+    <td><span class="swatch blue"></span>Blue (hold)</td>
+    <td><strong>Color Circle</strong> &mdash; lights chase smoothly around in a circle</td>
+  </tr>
+  <tr>
+    <td><span class="swatch yellow"></span>Yellow (hold)</td>
+    <td><strong>Disco</strong> &mdash; one random LED fades in and out at a time</td>
+  </tr>
+  <tr>
+    <td><span class="swatch white"></span>White (hold)</td>
+    <td><strong>Resume Automatic Mode</strong> &mdash; go back to following your calendar</td>
+  </tr>
+</table>
+
+<h2>Powering On &mdash; What the Startup Lights Mean</h2>
+
+<p>
+When you first plug the Busy Light in (or whenever it reboots &mdash; it
+restarts itself once a day at around 6:55&nbsp;AM for reliability), it goes
+through a quick startup sequence. You'll see a series of blinks while it
+finds its way onto the network. Here's a quick translation guide:
+</p>
+
+<table>
+  <tr>
+    <th style="width: 38%;">What You See</th>
+    <th>What's Happening</th>
+  </tr>
+  <tr>
+    <td><span class="swatch green"></span>Slow green blink</td>
+    <td>Looking for a known Wi-Fi network and trying to connect.</td>
+  </tr>
+  <tr>
+    <td><span class="swatch yellow"></span>Slow yellow blink</td>
+    <td>Couldn't find a known network &mdash; falling back to setup mode.</td>
+  </tr>
+  <tr>
+    <td><span class="swatch yellow"></span>Three bursts of three fast yellow blinks</td>
+    <td><strong>Wi-Fi setup mode is active.</strong> The Busy Light has created its own temporary Wi-Fi network so you can configure it (see "First-Time Wi-Fi Setup" below).</td>
+  </tr>
+  <tr>
+    <td><span class="swatch blue"></span>Slow blue blink</td>
+    <td>Connected to Wi-Fi &mdash; syncing the clock with internet time servers.</td>
+  </tr>
+  <tr>
+    <td><span class="swatch white"></span>Brief white flash</td>
+    <td>Time is synced. The Busy Light is now ready and will show your calendar status.</td>
+  </tr>
+  <tr>
+    <td><span class="swatch red"></span>Five fast red blinks</td>
+    <td>Something went wrong &mdash; usually a clock sync problem. The device will retry on its own; if it persists, unplug for 10 seconds and plug back in.</td>
+  </tr>
+</table>
+
+<div class="callout">
+  <span class="tip-label">A note on timing</span>
+  When several Busy Lights power up at the same time (after a power outage, for example),
+  each one waits a random few seconds before starting up so they don't all hit the network at once.
+  Don't be alarmed if yours takes a few extra seconds to come to life &mdash; it's being polite.
+</div>
+
+<h2>First-Time Wi-Fi Setup</h2>
+
+<p>
+If your Busy Light has never been on your network before &mdash; or if your
+Wi-Fi password has changed &mdash; it will go into <strong>setup mode</strong>
+(the yellow blink bursts described above). Here's how to get it connected:
+</p>
+
+<ol>
+  <li>On your phone or laptop, go to your Wi-Fi settings.</li>
+  <li>Look for a network named <strong>BusyLight-<em>X</em>-Setup</strong> (or your friendly device name, followed by "Setup") and connect to it.</li>
+  <li>A configuration page should pop up automatically. If not, open a browser and go to <strong>192.168.4.1</strong>.</li>
+  <li>Select your home or office Wi-Fi network from the list and enter the password.</li>
+  <li>Tap Save. The Busy Light will reboot, connect to your network, and start working.</li>
+</ol>
+
+<p>
+You only have to do this once. After that, it remembers your network and will
+reconnect automatically every time it's powered on.
+</p>
+
+<h2>Daily Rhythm</h2>
+
+<p>Here's what a typical day looks like from the Busy Light's perspective:</p>
+
+<ul>
+  <li><strong>Before 7:00 AM</strong> &mdash; All lights off. Sleeping in.</li>
+  <li><strong>7:00 AM</strong> &mdash; Wakes up briefly to check today's schedule (any remote-work flags, etc.). Then dims back down.</li>
+  <li><strong>8:30 AM</strong> (or your start time) &mdash; Business hours begin. Lights turn on to show your current status.</li>
+  <li><strong>Throughout the day</strong> &mdash; Checks your calendar every three minutes and updates color accordingly.</li>
+  <li><strong>4:30 PM</strong> (or your end time) &mdash; Business hours end. Lights turn off until tomorrow.</li>
+</ul>
+
+<h2>Troubleshooting</h2>
+
+<table>
+  <tr>
+    <th style="width: 35%;">If you see&hellip;</th>
+    <th>Try this</th>
+  </tr>
+  <tr>
+    <td>The light is the wrong color (says I'm busy when I'm free, or vice versa)</td>
+    <td>Press and hold the White button for 1.5&nbsp;seconds to resume automatic mode &mdash; you may have left it in manual override.</td>
+  </tr>
+  <tr>
+    <td>No lights at all during the workday</td>
+    <td>Check the USB power cable. If powered, look for a startup blink sequence. If you only see green or yellow blinks, it's trying to reach the network.</td>
+  </tr>
+  <tr>
+    <td>Yellow blink bursts that don't stop</td>
+    <td>The Busy Light needs Wi-Fi setup. See "First-Time Wi-Fi Setup" above.</td>
+  </tr>
+  <tr>
+    <td>It's been red for hours but I'm not actually in a meeting</td>
+    <td>Hold the White button for 1.5&nbsp;seconds to resume automatic mode. If still wrong, unplug for 10&nbsp;seconds and plug back in.</td>
+  </tr>
+  <tr>
+    <td>Five fast red blinks on startup</td>
+    <td>The clock sync failed &mdash; usually a temporary network issue. It will retry on its own. If it keeps happening, unplug for 10&nbsp;seconds and plug back in.</td>
+  </tr>
+</table>
+
+<h2>Quick Reference Card</h2>
+
+<table>
+  <tr>
+    <th colspan="2" style="background: #d36b1f;">Lights (normal use)</th>
+  </tr>
+  <tr><td><span class="swatch red"></span>Red, solid</td><td>In a meeting</td></tr>
+  <tr><td><span class="swatch red"></span>Red, pulsing</td><td>Meeting in &lt; 1 minute</td></tr>
+  <tr><td><span class="swatch green"></span>Green</td><td>Available</td></tr>
+  <tr><td><span class="swatch blue"></span>Blue</td><td>Remote day</td></tr>
+  <tr><td><span class="swatch off"></span>Off</td><td>Outside business hours</td></tr>
+
+  <tr>
+    <th colspan="2" style="background: #d36b1f;">Buttons</th>
+  </tr>
+  <tr><td>Tap any color</td><td>Force that color on (manual override)</td></tr>
+  <tr><td>Tap same color again</td><td>Turn off</td></tr>
+  <tr><td>Hold White (1.5s)</td><td>Resume automatic / calendar mode</td></tr>
+  <tr><td>Hold Red / Green / Blue / Yellow</td><td>Light show modes (any tap exits)</td></tr>
+</table>
+
+<footer>
+  <div class="brand-foot">LESSARD INDUSTRIES</div>
+  <div>Busy Light &middot; Firmware v8.1 &middot; Designed and built in-house</div>
+  <div style="margin-top: 6px; color: #999;">Questions? Find Ed.</div>
+</footer>
+
+</body>
+</html>
