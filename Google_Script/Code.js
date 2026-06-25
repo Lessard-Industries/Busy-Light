@@ -23,8 +23,28 @@ const CACHE_DURATION_SECONDS = 180; // 3 minutes
 
 // Bump CACHE_VERSION when changing constants above to force cache refresh
 // (This is separate from SCRIPT_VERSION)
-const CACHE_VERSION = "13";
-const SCRIPT_VERSION = "8.1.0";
+const CACHE_VERSION = "14";
+const SCRIPT_VERSION = "8.2.0";
+
+// Windows/M365 TZID name -> IANA zone. Cross-timezone invites (e.g. an
+// organizer in Central) carry their own TZID with that zone's wall clock;
+// without this map those times get read as Eastern and land an hour (or more)
+// off. Unmapped/missing TZIDs fall back to TIMEZONE (prior behavior).
+const WINDOWS_TZ_TO_IANA = {
+  'Eastern Standard Time': 'America/New_York',
+  'Central Standard Time': 'America/Chicago',
+  'Mountain Standard Time': 'America/Denver',
+  'US Mountain Standard Time': 'America/Phoenix',   // Arizona, no DST
+  'Pacific Standard Time': 'America/Los_Angeles',
+  'Atlantic Standard Time': 'America/Halifax',
+  'Alaskan Standard Time': 'America/Anchorage',
+  'Hawaiian Standard Time': 'Pacific/Honolulu',
+  'GMT Standard Time': 'Europe/London',
+  'Central Europe Standard Time': 'Europe/Budapest',
+  'W. Europe Standard Time': 'Europe/Berlin',
+  'India Standard Time': 'Asia/Kolkata',
+  'UTC': 'Etc/UTC'
+};
 
 // ============================================================================
 // REQUEST HANDLERS
@@ -615,10 +635,23 @@ function parseICSDate(line) {
     return new Date(Date.UTC(year, month, day, hour, minute, second));
   }
 
-  // Floating or TZID-prefixed: treat as wall time in TIMEZONE.
-  // M365 feeds typically use TZID="Eastern Standard Time" for personal calendars;
-  // we assume the calendar is in TIMEZONE rather than trying to map Windows TZ names.
-  return wallTimeInTZToDate(year, month, day, hour, minute, second, TIMEZONE);
+  // TZID-prefixed or floating: convert the wall-clock time using the event's
+  // own zone. M365 personal calendars use Windows TZID names (e.g.
+  // "Eastern Standard Time"); invites from other zones carry their own name and
+  // that zone's wall clock. Map the TZID to IANA; if it's absent or unknown,
+  // fall back to TIMEZONE (the prior assumption, correct for local meetings).
+  var tz = TIMEZONE;
+  var tzidMatch = line.match(/TZID=("?)([^;:"]+)\1/);
+  if (tzidMatch) {
+    var tzid = tzidMatch[2];
+    if (WINDOWS_TZ_TO_IANA[tzid]) {
+      tz = WINDOWS_TZ_TO_IANA[tzid];      // known Windows name
+    } else if (tzid.indexOf('/') !== -1) {
+      tz = tzid;                          // already an IANA name
+    }
+    // else: unrecognized name -> keep TIMEZONE rather than risk a GMT default
+  }
+  return wallTimeInTZToDate(year, month, day, hour, minute, second, tz);
 }
 
 // Convert a wall-clock time (year/month/day/hour/min/sec as displayed in tz) to a UTC Date.
