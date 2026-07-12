@@ -111,7 +111,7 @@ const char* FIRMWARE_VERSION = "8.1.0";
 #elif DEVICE_ID == 3
   const String DEVICE_HOSTNAME = "Ed-Pixel-2XL";
 #elif DEVICE_ID == 4
-  const String DEVICE_HOSTNAME = "Ed-Pixel-7a";
+  const String DEVICE_HOSTNAME = "";  // TEMP: stock hostname for AP-policy test
 #elif DEVICE_ID == 5
   const String DEVICE_HOSTNAME = "Ed-Nexus7";
 #endif
@@ -1236,19 +1236,20 @@ void setupWiFi() {
     logMessage("Startup delay: " + String(delayMs) + "ms");
     delay(delayMs);
 
-    WiFi.setHostname(DEVICE_HOSTNAME.c_str());
+    if (DEVICE_HOSTNAME.length() > 0) {
+        WiFi.setHostname(DEVICE_HOSTNAME.c_str());
+    }
     WiFi.mode(WIFI_STA);
 
     // Spoof MAC for devices the AP refuses to admit under their real MAC.
     // Devices 2 and 3 connect fine, so leave them on factory MAC.
+    // TEMP: device 4 removed from spoof for AP-policy test.
 #if DEVICE_ID == 1
     uint8_t customMac[] = {0xCC, 0x50, 0xE3, 0x11, 0x10, 0x7C};
-#elif DEVICE_ID == 4
-    uint8_t customMac[] = {0xCC, 0x50, 0xE3, 0x11, 0x4B, 0x90};
 #elif DEVICE_ID == 5
     uint8_t customMac[] = {0xCC, 0x50, 0xE3, 0x11, 0x24, 0xF4};
 #endif
-#if DEVICE_ID == 1 || DEVICE_ID == 4 || DEVICE_ID == 5
+#if DEVICE_ID == 1 || DEVICE_ID == 5
     esp_err_t macErr = esp_wifi_set_mac(WIFI_IF_STA, customMac);
     if (macErr == ESP_OK) {
         logMessage("MAC spoofed: " + WiFi.macAddress());
