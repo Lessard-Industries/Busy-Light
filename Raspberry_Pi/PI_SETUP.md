@@ -62,14 +62,22 @@ dtoverlay=dwc2,dr_mode=host
 | Setting | Value |
 |---------|-------|
 | Hostname | PiZero |
-| IP Address | 192.168.68.150 (DHCP) |
-| SSH | Enabled, key-based auth configured |
+| IP Address | `192.168.68.243` — **static DHCP reservation on the hEX router** (MAC `B8:27:EB:B5:5F:D1`); reserved 2026-07-20, see `C:\Code\netcom\devices\hex\README.md` |
+| SSH | Key-based auth, standard netcom key (`~/.ssh/id_ed25519`, comment `ed@LessardServer`) |
 
 SSH from development machine:
 ```
 ssh pi@pizero
 ```
-(Resolved via SSH config at `~/.ssh/config` with `HostName 192.168.68.150`)
+(Resolved via SSH config at `~/.ssh/config`, `Host pizero` → `HostName 192.168.68.243`)
+
+**Not monitored by netcom-status** — this Pi is intentionally excluded from the netcom push/health-check system. The only netcom-side footprint is the DHCP reservation row in `devices/hex/README.md`. If the Pi ever needs a new reservation or the key is rotated, update it there and in this file — netcom has no automated tracking of it.
+
+### If the IP ever needs to change
+1. Find current MAC/lease: `ssh admin@192.168.68.1 "/ip dhcp-server lease print detail where mac-address=B8:27:EB:B5:5F:D1"`
+2. Update/re-add the static lease on the router (`/ip dhcp-server lease add ...` or edit in place)
+3. Update the IP here and in `devices/hex/README.md`'s reservation table
+4. Update `~/.ssh/config`'s `pizero` `HostName`
 
 ## Application
 
