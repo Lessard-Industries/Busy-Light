@@ -35,7 +35,7 @@ Google Apps Script (Calendar Parser)
 ESP32 Devices (×5) ──── MQTT ────► HiveMQ Cloud
         │                               │
         ▼                               ▼
-  LED Indicators              Node-RED (Oracle Cloud)
+  LED Indicators              Node-RED (lessard-cloud)
                                         │
                                         ▼
                               Web Dashboard + Monitoring
@@ -51,7 +51,7 @@ ESP32 Devices (×5) ──── MQTT ────► HiveMQ Cloud
 | **ESP32** (×5) | LED busy light nodes |
 | **Google Apps Script** | Parses M365 ICS calendar feed, returns JSON |
 | **HiveMQ Cloud** | MQTT broker for device telemetry and control |
-| **Node-RED (Oracle Cloud)** | Dashboard, monitoring, and device control |
+| **Node-RED (lessard-cloud)** | Dashboard, monitoring, and device control |
 | **Raspberry Pi Zero** | Always-on e-ink status display |
 
 ---
