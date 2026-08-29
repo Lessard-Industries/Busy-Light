@@ -86,10 +86,6 @@ const int MAX_CALENDAR_FAILURES = 3;
   const int PIXEL_COUNT_BALL = 3;
   const int PIXEL_COUNT_TUBE = 12;
   const uint8_t PIXEL_BRIGHTNESS = 191;  // 75%
-  // DIAGNOSTIC: set to 1 to build WITHOUT any WS2812 RMT init/use, to test
-  // whether the LED driver interferes with WiFi RX. LEDs stay dark. Set back
-  // to 0 for a normal build once the code-vs-hardware question is answered.
-  #define PIXEL_RXTEST_DISABLE 1
 #endif
 
 #ifndef LIGHT_PIXEL
@@ -116,7 +112,7 @@ const int GAP_DURATION_MS = 100;
 // DERIVED CONSTANTS (auto-generated from config)
 // ============================================================================
 
-const char* FIRMWARE_VERSION = "8.2.0-pixel";
+const char* FIRMWARE_VERSION = "8.2.3-pixel";
 
 // Stealth hostnames - look like normal office devices to bypass network profiling
 #if DEVICE_ID == 1
@@ -318,8 +314,10 @@ void setupWiFiEvents() {
     switch (event) {
       case WIFI_EVENT_STA_DISCONNECTED:
         wifiDisconnectReason = info.wifi_sta_disconnected.reason;
-        // Only log once per minute to avoid spam
-        if (millis() - lastWifiDisconnectLog > 60000) {
+        // Only log once per minute to avoid spam (lastWifiDisconnectLog==0 check:
+        // otherwise nothing is printed during the first 60 s after boot, which
+        // hid every boot-time join failure reason)
+        if (millis() < 60000 || millis() - lastWifiDisconnectLog > 60000) {
           Serial.println("[WIFI] Disconnected - Reason: " + String(wifiDisconnectReason));
           lastWifiDisconnectLog = millis();
         }
@@ -362,16 +360,12 @@ uint8_t channelDuty[5] = {0, 0, 0, 0, 0};
 bool pixelsDirty = false;  // set by lightWrite, cleared by lightShow
 
 void lightSetup() {
-#if PIXEL_RXTEST_DISABLE
-  return;  // DIAG: skip all NeoPixel/RMT init to test WiFi-RX interference
-#else
   pixelsBall.begin();
   pixelsTube.begin();
   pixelsBall.setBrightness(PIXEL_BRIGHTNESS);
   pixelsTube.setBrightness(PIXEL_BRIGHTNESS);
   pixelsBall.clear(); pixelsTube.clear();
   pixelsBall.show();  pixelsTube.show();
-#endif
 }
 
 // Update the logical channel and stage the blended color into both strips.
@@ -402,15 +396,10 @@ void lightWrite(int channel, int duty) {
 
 // Transmit staged color to both strips, once, only if something changed.
 void lightShow() {
-#if PIXEL_RXTEST_DISABLE
-  pixelsDirty = false;  // DIAG: never touch the RMT/strips
-  return;
-#else
   if (!pixelsDirty) return;
   pixelsDirty = false;
   pixelsBall.show();
   pixelsTube.show();
-#endif
 }
 
 #else  // LIGHT_PWM
@@ -721,27 +710,36 @@ void syncTime() {
   if (WiFi.status() != WL_CONNECTED || timeSynced) return;
 
   unsigned long now = millis();
-  if (lastTimeSyncAttempt != 0 && (now - lastTimeSyncAttempt) < 30000) return;
+  if (lastTimeSyncAttempt != 0 && (now - lastTimeSyncAttempt) < 2000) return;
   lastTimeSyncAttempt = now;
 
+  struct tm timeinfo;
   if (!sntpStarted) {
     // configTzTime applies the POSIX TZ string so localtime_r / mktime do DST
     // automatically. It returns immediately; SNTP resolves in the background.
+    logMessage("Syncing time...");
+    blinkBlue();
     configTzTime(TZ_STRING, "pool.ntp.org", "time.google.com", "time.cloudflare.com");
     sntpStarted = true;
-    logMessage("SNTP started (background)");
-    return;  // give it time; we'll check on the next attempt
+    // One bounded wait at boot (NTP normally answers well under 1 s) so the
+    // boot catch-up has real time and the blue->white sequence matches the PWM
+    // units. If it misses, fall through to background polling — never the old
+    // 88 s blocking retry loop.
+    if (!getLocalTime(&timeinfo, 10000)) {
+      logMessage("NTP not ready yet, polling in background");
+      return;
+    }
+  } else if (!getLocalTime(&timeinfo, 500)) {  // short check, never a long block
+    return;
   }
-
-  struct tm timeinfo;
-  if (getLocalTime(&timeinfo, 500)) {  // short check, never a long block
+  {
     char time_str[64];
     strftime(time_str, sizeof(time_str), "%m/%d %l:%M:%S %p", &timeinfo);
     logMessage("Time synced: " + String(time_str));
     timeSynced = true;
     flashWhite();
   }
-  // Not ready yet: silently return and retry in >=30s. No blocking, no reboot.
+  // Not ready yet: retry every 2 s. No blocking, no reboot.
 }
 
 // ============================================================================
@@ -1353,17 +1351,12 @@ void setupWiFi() {
         WiFi.setHostname(DEVICE_HOSTNAME.c_str());
     }
     WiFi.mode(WIFI_STA);
-    // Disable WiFi modem-sleep. With power-save on (the default), the radio
-    // sleeps between DTIM beacons and can miss inbound packets the AP fails to
-    // buffer -> DNS responses / MQTT data silently dropped even at strong RSSI.
-    // Pi-hole confirmed it receives & answers this device's queries, yet the
-    // ESP32 times out waiting for the reply: classic modem-sleep RX loss.
-    WiFi.setSleep(false);
 
     // Spoof MAC for devices the AP refuses to admit under their real MAC.
     // Devices 2 and 3 connect fine, so leave them on factory MAC.
     // TEMP: device 4 removed from spoof for AP-policy test.
-    // Device 5 is new hardware (pixel build) — factory MAC, spoofing dropped.
+    // Device 5 (pixel, new hardware) runs its factory MAC: measured 2026-08-29
+    // that the MAC has no bearing on the boot-time 202 refusal (see setup loop).
 #if DEVICE_ID == 1
     uint8_t customMac[] = {0xCC, 0x50, 0xE3, 0x11, 0x10, 0x7C};
 #endif
@@ -1383,18 +1376,33 @@ void setupWiFi() {
     };
     const int numNetworks = sizeof(wifiNetworks) / sizeof(wifiNetworks[0]);
 
+    // Measured 2026-08-29: after an abrupt reset/power-cycle the AP still holds
+    // the old session for this MAC and answers the first auth with reason 202
+    // (AUTH_FAIL); it accepts again ~20-30 s after the client vanished. The
+    // ESP32 does not retry after 202 on its own. So: an SSID that is simply not
+    // here (201 NO_AP_FOUND) gets 10 s; an SSID that answered but refused gets
+    // re-begin()'d every 3 s for up to 30 s. Up to 6 passes (~2 min) before the
+    // portal fallback, which costs a 2-min timeout plus a reboot anyway.
+    for (int pass = 0; pass < 6; pass++)
     for (int n = 0; n < numNetworks; n++) {
-        logMessage("Trying WiFi " + String(n + 1) + ": " + String(wifiNetworks[n][0]));
+        logMessage("Trying WiFi " + String(n + 1) + ": " + String(wifiNetworks[n][0]) + " (pass " + String(pass + 1) + ")");
+        wifiDisconnectReason = 0;
         WiFi.begin(wifiNetworks[n][0], wifiNetworks[n][1]);
 
-        // Slow green blink while trying to connect
-        int attempts = 0;
-        while (WiFi.status() != WL_CONNECTED && attempts < 20) {  // ~10 seconds
+        // Slow green blink while trying to connect (each attempt = 500 ms)
+        int attempts = 0, sinceBegin = 0;
+        while (WiFi.status() != WL_CONNECTED) {
+            bool apSeen = (wifiDisconnectReason != 0 && wifiDisconnectReason != WIFI_REASON_NO_AP_FOUND);
+            if (attempts >= (apSeen ? 60 : 20)) break;          // 30 s if the AP answered, else 10 s
+            if (apSeen && sinceBegin >= 6) {                      // refused: re-auth every 3 s
+                WiFi.begin(wifiNetworks[n][0], wifiNetworks[n][1]);
+                sinceBegin = 0;
+            }
             lightWrite(1, 255); lightShow();  // Green on
             delay(250);
             lightWrite(1, 0); lightShow();    // Green off
             delay(250);
-            attempts++;
+            attempts++; sinceBegin++;
         }
 
         if (WiFi.status() == WL_CONNECTED) {
@@ -1517,12 +1525,6 @@ void saveFriendlyName(String name) {
 // ============================================================================
 // SETUP AND LOOP
 // ============================================================================
-
-// ---- DIAGNOSTICS (pixel build only) ----
-// Measures where time goes so we can tell a frozen loop from radio packet loss.
-unsigned long diagLastPrint = 0;
-unsigned long diagLoopPrev  = 0;
-unsigned long diagLoopMaxMs = 0;   // worst single loop iteration in the window
 
 const char* resetReasonStr(esp_reset_reason_t r) {
   switch (r) {
@@ -1740,29 +1742,6 @@ void loop() {
   // effects smooth and avoids starving the WiFi/MQTT stack.
   lightShow();
 
-  // ---- DIAGNOSTICS ----
-  // Track the worst single loop iteration; a big spike means a blocking call
-  // (HTTP GET, NTP) froze the loop. A DIAG line every 5s reports heap/RSSI/link
-  // so we can separate "loop frozen" from "radio dropping packets".
-  {
-    unsigned long dnow = millis();
-    if (diagLoopPrev) {
-      unsigned long gap = dnow - diagLoopPrev;
-      if (gap > diagLoopMaxMs) diagLoopMaxMs = gap;
-    }
-    diagLoopPrev = dnow;
-
-    if (dnow - diagLastPrint >= 5000) {
-      diagLastPrint = dnow;
-      Serial.printf("[DIAG] up=%lus heap=%u rssi=%d wifi=%d mqtt=%d dns=%s loopMax=%lums\n",
-                    dnow / 1000, ESP.getFreeHeap(),
-                    (WiFi.status() == WL_CONNECTED) ? WiFi.RSSI() : 0,
-                    (int)(WiFi.status() == WL_CONNECTED),
-                    (int)mqttClient.connected(),
-                    WiFi.dnsIP(0).toString().c_str(), diagLoopMaxMs);
-      diagLoopMaxMs = 0;
-    }
-  }
 
   yield();
   delay(1);

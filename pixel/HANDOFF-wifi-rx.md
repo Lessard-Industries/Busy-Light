@@ -1,173 +1,81 @@
-# Device 5 (PIXEL build) — WiFi RX failure: findings & work ahead
+# Device 5 (PIXEL build) — WiFi RX investigation: RESOLVED 2026-08-29
 
-**Status:** Root cause found and proven. LEDs currently disabled by a diagnostic flag
-so the unit stays online. Remaining task: make the WS2812 LEDs work **without**
-re-breaking WiFi reception.
+**Status:** Closed. LEDs enabled (v8.2.3-pixel), 0% packet loss in every configuration,
+boot join hardened. This file is kept as the record of what was measured.
 
----
+## Result
 
-## TL;DR
+The earlier claim (2026-08-28) that the WS2812/RMT LED driver caused ~63% inbound
+packet loss **did not reproduce**. Every test below ran a 60-ping race against device 5
+(.148) with device 1 (.134) as a same-moment control, the Adafruit NeoPixel RMT driver
+fully active, and the effect/mode confirmed over MQTT (`busylight/device5/mode`).
 
-The WS2812/NeoPixel **RMT LED subsystem** on device 5's ESP32 causes **~63% inbound
-WiFi packet loss**. That single fault produced every symptom (sluggish/unresponsive,
-MQTT lag, dashboard "behind" then dropping, failed DNS, hard-to-associate WiFi).
+| Hardware | LED activity | .148 loss | .134 control |
+|---|---|---|---|
+| ball only (tube data connected, tube 5 V off) | COLOR_CIRCLE (continuous `show()`) | 0/60 | 0/60 |
+| ball + tube, tube powered from VIN | COLOR_CIRCLE | 0/60 | 0/60 |
+| ball + tube powered | solid WHITE (max current) | 0/60 | 0/60 |
+| ball + tube powered | DOUBLE_DISCO | 0/60 | 0/60 |
+| ball + tube powered, joined via WiFiManager portal | idle | 2/60, then 0/120 | 0/60, 0/120 |
+| LED driver compiled out (previous session's baseline) | dark | 0/20 | 0/20 |
 
-Proven by a controlled ping race on the same LAN, same moment:
+Throughout: `mqtt=1` held, `loopMax` ≤ 11 ms, RSSI −47…−58, no DNS failures.
+The 2/60 after a portal-path join was the first seconds after association (DHCP/ARP);
+the setup softAP was confirmed **not** left on air (PC WiFi scan).
 
-| Build | device 5 (.148) RX loss | device 1 (.134) control |
-|---|---|---|
-| Normal (NeoPixel/RMT active) | **63%** (22/60) | 0% |
-| NeoPixel/RMT **disabled** | **0%** (60/60) | 0% |
+## The one real, reproducible defect: boot-time auth refusal (fixed in v8.2.3)
 
-With the LED driver disabled the unit joins WiFi on its own (no AP portal),
-MQTT connects and **holds**, `loopMax` stays 0–9 ms, DNS resolves, and the
-Node-RED dashboard tracks it. Re-enabling the current LED driver brings the
-packet loss back.
+Measured with the ESP32's own disconnect reason codes (the handler's 60 s rate-limit
+had been swallowing every boot-window reason; fixed):
 
----
+- 5EBA is not present at home → 4× reason 201 (NO_AP_FOUND) over the 10 s attempt.
+- NightHawk, first attempt ~11 s after an abrupt reset/power-cycle → **reason 202
+  (AUTH_FAIL) 0.1 s after `begin()`**. The ESP32 does not retry after 202. The old
+  loop moved on, so the next real attempt was 20 s later (pass 2) or the 2-min portal.
+- Reset after a long-lived session, or after the ~30 s esptool parks the chip → accepted.
+- With a *fresh* (spoofed) MAC → accepted first try; on the very next reset with that
+  same MAC → 202. So the AP refuses the first auth from a MAC whose previous session it
+  still holds; MAC value, hostname (`Ed-Pixel-8` vs stock) and `WiFi.setSleep(false)`
+  were each tested and make no difference.
+- **Fix:** an SSID that answered-but-refused is re-`begin()`'d every 3 s for up to 30 s
+  (an SSID that is simply absent still gets 10 s); up to 6 passes before the portal.
+  Verified on three consecutive refused boots: 202 at 11.3 s → connected at 14.3 s →
+  MQTT ~25 s. Non-refused boots join at ~11.5 s.
+- The PWM build (devices 1–4, 8.1.0) has the same swallowed-reason bug and no retry —
+  it recovers via WiFiManager's own connect attempt (~10 s later). A same-fix 8.1.1 for
+  the main firmware is a to-do, not urgent.
 
-## What was ruled OUT (don't re-chase these)
+Device 5 runs its factory MAC (Opus's choice stands); `WiFi.setSleep(false)` removed
+(never in the main build, measured irrelevant).
 
-All of these were investigated and disproven with evidence:
+**Power-integrity note:** twice the serial output turned to garbage for ~1 s exactly
+when the strips switched (end of the connect blink, the blue/white flashes), and two
+of the day's uploads aborted with "serial noise". Strips + shifter on VIN with only a
+small ceramic → ground/5 V bounce. Did not cost packets in any test. Ed added a bulk
+electrolytic on 5 V (2026-08-29, hot-plugged → one brownout reboot, expected); the
+next serial-observed boot had zero garbage bursts and 0/60 loss with LEDs cycling.
 
-- **The network / LAN** — device 1 on the *same* network at the *same* time had **0%**
-  loss. Network is fine.
-- **The DNS server (Pi-hole on HomePi 192.168.68.5)** — healthy; resolved the broker
-  10/10 instantly; **receives and answers** device 5's queries (474/24h, 0 refused).
-  The replies just don't reach device 5.
-- **Pi-hole rate-limiting** — limit is 1000/60s/client; device 5's worst-ever minute
-  was 216, whole day 474. Zero rate-limit events logged. Disproven.
-- **IP conflict on .148** — router DHCP + ARP + Pi-hole all show a single Espressif MAC
-  `20:E7:C8:BB:00:1C` (hostname "Ed-Pixel-8" is device 5's own stealth name). No conflict.
-- **WiFi modem-sleep** — added `WiFi.setSleep(false)`; did **not** fix the loss.
-- **Weak signal / RF distance** — fails at **RSSI −52** (excellent). Pinning a closer
-  mesh node didn't help.
-- **Power / LED current draw** — pulled the 12-px strip's 5 V (leaving 3 px); still failed.
-- **Firmware loop freeze** — real, but a *separate* bug (see "Changes already made");
-  fixed independently and not the cause of the packet loss.
+## Kept from the previous session (correct, independent of all this)
 
-## What was CONFIRMED
+`lightShow()` batching (one transmit per loop per strip); non-blocking `syncTime()`
+(v8.2.2: one bounded 10 s NTP wait at boot with the blue blink so the boot sequence
+matches the PWM units, then 2 s background polling — never the old 88 s block);
+HTTP timeout 5 s + TLS handshake timeout 6 s; `WiFi.setSleep(false)`; static-IP attempt
+fully backed out (unit is pure DHCP). `PIXEL_RXTEST_DISABLE` scaffold and the `[DIAG]`
+loop telemetry were removed in v8.2.1/8.2.2; the boot `Reset reason:` print stays.
 
-Device 5 can **transmit** (its DNS queries reach Pi-hole; gratuitous ARP populates the
-LAN) but **loses ~63% of inbound unicast** (DNS replies, ICMP echo, TLS data). Disabling
-the NeoPixel/RMT subsystem removes the loss entirely. Therefore the fault is in the LED
-driver path, which is the only thing different in this build vs. the working PWM units 1–4.
+## Known minor items (not part of this issue)
 
-**Extended-run confirmation (RMT disabled):** ~8 minutes of continuous serial showed
-`mqtt=1` held the entire time, `loopMax` mostly 3–16 ms, RSSI −52…−66, and **no**
-`hostByName DNS Failed` / `MQTT connection failed`. The fix holds over time, not just in a
-60 s snapshot.
+- Every 3 min the calendar HTTPS GET logs `ssl_client.cpp … (-76)` and blocks the loop
+  4–8 s. It is the calendar poll (blocking HTTPS + Google redirect); same on all units.
+  Device 5's Apps Script endpoint is healthy (200, `script_version 8.1.0`, correct
+  off_hours on a Saturday) — the earlier "ICS URL not configured" note is stale.
+- Adafruit NeoPixel 1.15.5 installs/uninstalls the RMT driver on every `show()`. Ugly,
+  but measured harmless here; leave it unless a reason appears.
 
-**One residual minor blip (not the main fault, likely pre-existing on all devices):** an
-occasional TLS read error on the MQTT socket —
-`ssl_client.cpp:37 _handle_error(): [data_to_read():361]: (-76) UNKNOWN ERROR CODE (004C)`
-— fires roughly every 1–3 min and causes a brief ~3.6–5.5 s `loopMax` spike, but MQTT
-**stays connected** through it. Low priority; worth a look only after the LED fix (could be
-the broker/TLS session, or a blocking read on the hiccup worth making non-blocking).
+## Hardware (device 5)
 
----
-
-## Hardware context (device 5)
-
-- ESP32 DevKit (`env:esp32doit-devkit-v1`), platform **pinned `espressif32@6.9.0`
-  (ESP32 Arduino 2.0.17) — do NOT upgrade** (breaks LED timing on the other projects too).
-- WS2812B, **two** data lines through an **SN74AHCT125N** level shifter:
-  - `PIXEL_PIN_BALL = 16` → ping-pong ball, 3 px
-  - `PIXEL_PIN_TUBE = 17` → tube, 12 px
-  - `PIXEL_BRIGHTNESS = 191` (75%)
-- LED driver: **Adafruit NeoPixel** (uses the ESP32 **RMT** peripheral for `show()`).
-- Factory MAC `20:E7:C8:BB:00:1C`, DHCP address `.148` (dynamic lease, not reserved).
-
----
-
-## Changes already made to `pixel/src/main.cpp` (this session)
-
-Keep these — they're correct and independent of the LED fix:
-
-1. **`lightShow()` batching.** `lightWrite()` now only stages the blended color + sets a
-   dirty flag; `lightShow()` transmits both strips **once per loop** (was: every
-   `lightWrite`, i.e. up to 10 `show()` per visual update). Blocking boot/WiFi blink
-   sequences call `lightShow()` explicitly.
-2. **Non-blocking `syncTime()`.** Was retrying NTP for ~88 s **while blocking the loop**,
-   and being called every loop until time synced → 90–140 s freezes (`loopMax=139856ms`
-   observed). Now: kick off background SNTP once, then poll `getLocalTime(…, 500)` at most
-   every 30 s. MQTT uses `setInsecure()` so it never needs the clock. This killed the
-   catastrophic freezes (loopMax now single-digit ms).
-3. **Timeouts capped:** `http.setTimeout(20000 → 5000)`; `mqttSecure`/`httpSecure`
-   `.setHandshakeTimeout(6)` — a lossy link can't hang a connect for many seconds.
-4. **`WiFi.setSleep(false)`** after `WiFi.mode(WIFI_STA)` — didn't fix the RX loss but is
-   good practice; keep unless you have a reason not to.
-5. **Diagnostics (temporary):** boot prints `Reset reason:`; a `[DIAG] up=.. heap=.. rssi=..
-   wifi=.. mqtt=.. dns=.. loopMax=..` line every 5 s. Handy for the LED-fix testing; remove
-   before final.
-6. **Backed OUT:** an earlier DNS-override attempt used `WiFi.config()` which pins a static
-   IP — it broke reconnects. Fully removed. Do **not** reintroduce static IP; the unit is
-   pure DHCP.
-
-### The diagnostic flag you must resolve
-
-```c
-#define PIXEL_RXTEST_DISABLE 1   // in the DEVICE_ID==5 config block
-```
-When `1`, `lightSetup()` and `lightShow()` skip **all** NeoPixel/RMT init and use (LEDs stay
-dark) — this is the state that gives 0% packet loss. **A real build needs this back to `0`,
-but that reintroduces the WiFi break until the LED driver is fixed.** That is the task.
-
----
-
-## Work ahead (the task)
-
-**Goal:** LEDs fully functional AND device 5 packet loss ~0% / MQTT stable (match device 1).
-
-### Step 1 — Pinpoint the mechanism (software vs electrical vs pins)
-
-Run the same ping race (`ping -n 60 192.168.68.148` vs `.134` control) under each:
-
-- **Re-enable the driver, strips physically UNPLUGGED** from 16/17.
-  - Loss returns → it's the **RMT software/peripheral** → fix in code (Step 2a).
-  - Loss stays 0%, returns only when strips are re-plugged → it's **electrical/EMI** from
-    the strips / level-shifter / long data lines near the PCB antenna (Step 2b).
-- Also suspect **GPIO16/17 specifically.** On some ESP32 modules those pins are tied to
-  PSRAM; if this module is a WROVER variant, driving 16/17 could be the whole problem.
-  Worth trying **different data pins** (e.g. 4/13/25/26 — pick free, non-strapping GPIOs).
-
-### Step 2a — If RMT software
-
-Switch off Adafruit NeoPixel's RMT path to a WiFi-friendly driver, keeping the same
-`lightWrite`/`lightShow` API:
-- **NeoPixelBus** with an **I2S/DMA** ESP32 method (DMA-driven, coexists with WiFi far
-  better than RMT), or
-- **FastLED** (test its ESP32 output method), or
-- ESP-IDF `led_strip` with RMT configured carefully.
-Re-measure packet loss with LEDs active; must be ~0%.
-
-### Step 2b — If electrical/EMI
-
-- Move data lines off 16/17 (see above) and shorten them.
-- Series resistor (~330 Ω) at each data output, decoupling cap at the strips.
-- Route the LED wiring / strips **away from the ESP32 PCB antenna** (the striped end).
-- Keep the level-shifter and its wiring off the antenna area.
-
-### Success criteria
-With `PIXEL_RXTEST_DISABLE 0` and LEDs displaying real status:
-- `ping -n 60 192.168.68.148` → ~0% loss (matches device 1).
-- `[DIAG]` shows `mqtt=1` held, no `hostByName DNS Failed`, `loopMax` single-digit ms.
-- Joins on the predefined path without the AP portal; Node-RED tracks it live.
-Then remove the temporary `[DIAG]`/reset-reason logging and the `PIXEL_RXTEST_DISABLE`
-scaffold.
-
----
-
-## Unrelated fix also done this session (context, not part of the task)
-
-The Node-RED dashboard's **activity-log panels were blank for ALL devices** since the
-Oracle→lessard-cloud migration. Cause: the 5 per-device "Aggregate Data" functions did
-`data.logs.unshift(...)` where `data.logs` was `undefined` (the `check_online` branch
-seeded context without a `logs` array), so every `/log` message threw. Guarded with
-`if (!Array.isArray(data.logs)) data.logs = [];` + `logs:[]` in the initializer, in all 5
-functions. Fixed in `Node-RED/flow.json` (repo, source of truth) and deployed live to
-Node-RED on lessard-cloud (backup `flows.json.bak-20260828-225515`). Logs now flow.
-
-Also: device 5's Apps Script calendar endpoint was returning **403** (deployment not
-authorized) — Ed re-authorized it; now 200. It still needs `setupICSUrl()` run in that
-Apps Script project to set the ICS feed (currently returns "ICS URL not configured").
+ESP32 DevKit (`esp32doit-devkit-v1`), platform pinned `espressif32@6.9.0`. WS2812B via
+SN74AHCT125N: GPIO16 → ball (3 px), GPIO17 → tube (12 px), brightness 191. Strips and
+shifter powered from the board's VIN; only capacitor is a ceramic across the shifter's
+supply pins. Factory MAC `20:E7:C8:BB:00:1C`, DHCP `.148`.
