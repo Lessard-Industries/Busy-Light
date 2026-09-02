@@ -131,6 +131,11 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
+Environment=PYTHONUNBUFFERED=1
+# Wait (up to 60s) for the SPI + GPIO device nodes to appear before starting.
+# On a cold boot rpi-gpiomem/spidev come up ~50s in; without this the script
+# hit epd.init() too early and crash-looped with "[Errno 2] No such file...".
+ExecStartPre=/bin/sh -c 'n=0; until { [ -e /dev/spidev0.0 ] && [ -e /dev/gpiochip0 ]; } || [ "$n" -ge 60 ]; do n=$((n+1)); sleep 1; done'
 ExecStart=/usr/bin/python3 /home/pi/busy_light_status.py
 WorkingDirectory=/home/pi
 StandardOutput=journal
@@ -142,6 +147,13 @@ User=pi
 [Install]
 WantedBy=multi-user.target
 ```
+
+> **Cold-boot SPI/GPIO race (fixed 2026-09-02):** the Pi's `rpi-gpiomem`/`spidev`
+> nodes don't appear until ~50s into boot, but the service used to start ~12s in and
+> crash-loop on `Display initialization failed: [Errno 2] No such file or directory`,
+> so the e-ink held a stale frame (looked "connected but wrong devices"). The
+> `ExecStartPre` line above blocks the start until both nodes exist. `PYTHONUNBUFFERED=1`
+> makes the script's prints show up in `journalctl` in real time instead of buffering.
 
 ### Service Commands
 ```bash
